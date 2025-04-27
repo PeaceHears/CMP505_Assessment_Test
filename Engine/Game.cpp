@@ -429,6 +429,29 @@ void Game::SetupGUI()
         m_Terrain.GenerateRandomHeightMap(m_deviceResources->GetD3DDevice());
     }
 
+    ImGui::Dummy(ImVec2(0.0f, 10.0f));
+
+    static float perlinNoiseScale = 10.0f;
+    static int perlinNoiseOctaves = 5;
+
+    ImGui::SliderFloat("Perlin Noise Scale", &perlinNoiseScale, 0.0f, 100.0f);
+    ImGui::SliderInt("Perlin Noise Octaves", &perlinNoiseOctaves, 0, 50);
+
+    if (ImGui::Button("Generate Perlin Noise Terrain"))
+    {
+        m_Terrain.GeneratePerlinNoiseTerrain(m_deviceResources->GetD3DDevice(), perlinNoiseScale, perlinNoiseOctaves);
+    }
+
+    ImGui::Dummy(ImVec2(0.0f, 10.0f));
+
+    static int numVoronoiRegions = 5;
+    ImGui::SliderInt("Number of Voronoi Regions", &numVoronoiRegions, 1, 20);
+
+    if (ImGui::Button("Generate Voronoi Regions"))
+    {
+        m_Terrain.GenerateVoronoiRegions(m_deviceResources->GetD3DDevice(), numVoronoiRegions);
+    }
+
 	ImGui::End();
 }
 

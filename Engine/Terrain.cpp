@@ -492,6 +492,252 @@ bool Terrain::GenerateRandomHeightMap(ID3D11Device* device)
 	return result;
 }
 
+void Terrain::GeneratePermutationTable()
+{
+	// Create and shuffle permutation table
+	m_permutation.resize(512);
+	std::vector<int> basePermutation(256);
+
+	// Initialize base permutation
+	for (int i = 0; i < 256; i++)
+	{
+		basePermutation[i] = i;
+	}
+
+	// Shuffle the base permutation
+	std::random_device rd;
+	std::mt19937 gen(rd());
+	std::shuffle(basePermutation.begin(), basePermutation.end(), gen);
+
+	// Duplicate the permutation to avoid overflow
+	for (int i = 0; i < 256; i++)
+	{
+		m_permutation[i] = basePermutation[i];
+		m_permutation[i + 256] = basePermutation[i];
+	}
+}
+
+float Terrain::Fade(float t)
+{
+	// Smoothing function: 6t^5 - 15t^4 + 10t^3
+	return t * t * t * (t * (t * 6 - 15) + 10);
+}
+
+float Terrain::Lerp(float t, float a, float b)
+{
+	// Linear interpolation
+	return a + t * (b - a);
+}
+
+float Terrain::Grad(int hash, float x, float y)
+{
+	// Ensure hash is within the permutation table range
+	hash &= 255;  // Limit to 0-255
+
+	// Compute gradient based on hash
+	switch (hash & 3)
+	{
+	case 0:  return  x + y;
+	case 1:  return -x + y;
+	case 2:  return  x - y;
+	case 3:  return -x - y;
+	default: return 0;
+	}
+}
+
+float Terrain::PerlinNoise2D(float x, float y)
+{
+	// Ensure we have a permutation table
+	if (m_permutation.empty())
+	{
+		GeneratePermutationTable();
+	}
+
+	// Find unit grid cell containing point
+	int X = static_cast<int>(std::floor(x)) & 255;
+	int Y = static_cast<int>(std::floor(y)) & 255;
+
+	// Relative coordinates within the cell
+	x -= std::floor(x);
+	y -= std::floor(y);
+
+	// Compute fade curves for x and y
+	float u = Fade(x);
+	float v = Fade(y);
+
+	// Hash coordinates of the 4 square corners
+	int A = m_permutation[X] + Y;
+	int AA = m_permutation[A & 255];
+	int AB = m_permutation[(A + 1) & 255];
+	int B = m_permutation[(X + 1) & 255] + Y;
+	int BA = m_permutation[B & 255];
+	int BB = m_permutation[(B + 1) & 255];
+
+	// Blend corner gradients
+	return Lerp(v,
+		Lerp(u,
+			Grad(m_permutation[AA], x, y),
+			Grad(m_permutation[BA], x - 1, y)
+		),
+		Lerp(u,
+			Grad(m_permutation[AB], x, y - 1),
+			Grad(m_permutation[BB], x - 1, y - 1)
+		)
+	);
+}
+
+bool Terrain::GeneratePerlinNoiseTerrain(ID3D11Device* device, float scale, int octaves)
+{
+	bool result = false;
+
+	// Clamp octaves to prevent excessive computation
+	octaves = std::max(1, std::min(octaves, 8));
+
+	// Initialize the height map
+	for (int j = 0; j < m_terrainHeight; j++)
+	{
+		for (int i = 0; i < m_terrainWidth; i++)
+		{
+			int index = (m_terrainHeight * j) + i;
+
+			// Scale coordinates
+			float x = static_cast<float>(i) / scale;
+			float y = static_cast<float>(j) / scale;
+
+			float amplitude = 1.0f;
+			float frequency = 1.0f;
+			float noiseValue = 0.0f;
+			float totalAmplitude = 0.0f;
+
+			// Sum noise contributions (Fractal Brownian Motion)
+			for (int o = 0; o < octaves; o++)
+			{
+				noiseValue += PerlinNoise2D(x * frequency, y * frequency) * amplitude;
+				totalAmplitude += amplitude;
+
+				// Update parameters for the next octave
+				amplitude *= 0.5f;   // Reduce amplitude for higher octaves
+				frequency *= 2.0f;   // Increase frequency for higher octaves
+			}
+
+			// Normalize the noise value
+			if (totalAmplitude > 0.0f)
+			{
+				noiseValue /= totalAmplitude;
+			}
+
+			// Scale height to desired range (adjust as needed)
+			m_heightMap[index].y = noiseValue * m_amplitude;
+		}
+	}
+
+	result = CalculateNormalsAndInitializeBuffers(device);
+	return result;
+
+	return true;
+}
+
+DirectX::SimpleMath::Vector4 Terrain::GetColorByHeight(float height)
+{
+	// Define your height ranges and color mappings
+	// Adjust these values as necessary for your desired effect
+	if (height < -1.0f) return DirectX::Colors::Blue;     // Low heights (water)
+	else if (height < 0.0f) return DirectX::Colors::LightBlue; // Land below sea level
+	else if (height < 1.0f) return DirectX::Colors::Green;   // Low land
+	else if (height < 3.0f) return DirectX::Colors::DarkGreen; // Hills
+	else if (height < 5.0f) return DirectX::Colors::Brown;    // Mountains
+	else return DirectX::Colors::White;                      // Snow-capped peaks
+}
+
+bool Terrain::GenerateVoronoiRegions(ID3D11Device* device, int numRegions)
+{
+	bool result = false;
+
+	// Clear existing regions
+	m_voronoiRegions.clear();
+
+	// Random number generator setup
+	std::random_device rd;
+	std::mt19937 gen(rd());
+	std::uniform_real_distribution<> disX(0, m_terrainWidth - 1);
+	std::uniform_real_distribution<> disZ(0, m_terrainHeight - 1);
+	std::uniform_real_distribution<> disHeight(-1.0f, 1.0f);
+
+	// Generate seed points for each region
+	for (int i = 0; i < numRegions; i++)
+	{
+		VoronoiRegion region;
+		region.seedPoint = DirectX::SimpleMath::Vector2(
+			static_cast<float>(disX(gen)),
+			static_cast<float>(disZ(gen))
+		);
+		region.color = GenerateRandomColor();
+		region.heightOffset = disHeight(gen);
+		m_voronoiRegions.push_back(region);
+	}
+
+	// Assign regions and modify terrain
+	for (int j = 0; j < m_terrainHeight; j++)
+	{
+		for (int i = 0; i < m_terrainWidth; i++)
+		{
+			int index = (m_terrainHeight * j) + i;
+
+			// Find the closest region seed point
+			float minDistance = std::numeric_limits<float>::max();
+			VoronoiRegion* closestRegion = nullptr;
+
+			for (auto& region : m_voronoiRegions)
+			{
+				float distance = CalculateDistance(
+					static_cast<float>(i), static_cast<float>(j),
+					region.seedPoint.x, region.seedPoint.y
+				);
+
+				if (distance < minDistance)
+				{
+					minDistance = distance;
+					closestRegion = &region;
+				}
+			}
+
+			// Modify terrain based on closest region
+			if (closestRegion)
+			{
+				// Color coding
+				m_heightMap[index].colour = closestRegion->color;
+
+				// Optional height modification
+				m_heightMap[index].y += closestRegion->heightOffset * 0.5f;
+			}
+		}
+	}
+
+	result = CalculateNormalsAndInitializeBuffers(device);
+	return result;
+}
+
+float Terrain::CalculateDistance(float x1, float y1, float x2, float y2)
+{
+	float dx = x1 - x2;
+	float dy = y1 - y2;
+	return std::sqrt(dx * dx + dy * dy);
+}
+
+DirectX::SimpleMath::Vector4 Terrain::GenerateRandomColor()
+{
+	std::random_device rd;
+	std::mt19937 gen(rd());
+	std::uniform_real_distribution<> dis(0.0f, 1.0f);
+
+	return DirectX::SimpleMath::Vector4(
+		dis(gen),  // Red
+		dis(gen),  // Green
+		dis(gen),  // Blue
+		1.0f       // Full opacity
+	);
+}
+
 bool Terrain::Update()
 {
 	return true; 
