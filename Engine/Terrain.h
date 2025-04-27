@@ -26,10 +26,14 @@ public:
 	bool Initialize(ID3D11Device*, int terrainWidth, int terrainHeight);
 	void Render(ID3D11DeviceContext*);
 	bool GenerateHeightMap(ID3D11Device*);
+	bool GenerateRandomHeightMap(ID3D11Device*);
 	bool Update();
-	float* GetWavelength();
 
+	float* GetWavelength();
 	float* GetAmplitude();
+
+	// For random height map
+	void SetRandomSeed(unsigned int seed);
 
 private:
 	bool CalculateNormals();
@@ -37,7 +41,7 @@ private:
 	void ShutdownBuffers();
 	bool InitializeBuffers(ID3D11Device*);
 	void RenderBuffers(ID3D11DeviceContext*);
-	
+	bool CalculateNormalsAndInitializeBuffers(ID3D11Device* device);
 
 private:
 	bool m_terrainGeneratedToggle;
@@ -50,5 +54,8 @@ private:
 	//arrays for our generated objects Made by directX
 	std::vector<VertexPositionNormalTexture> preFabVertices;
 	std::vector<uint16_t> preFabIndices;
+
+	// Random number generator for random height map
+	unsigned int m_randomSeed;
 };
 

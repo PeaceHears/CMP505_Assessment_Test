@@ -1,15 +1,25 @@
 #include "pch.h"
 #include "Terrain.h"
+#include <random>
 
 
 Terrain::Terrain()
 {
 	m_terrainGeneratedToggle = false;
+
+	// Default random seed
+	m_randomSeed = static_cast<unsigned int>(std::time(nullptr));
 }
 
 
 Terrain::~Terrain()
 {
+
+}
+
+void Terrain::SetRandomSeed(unsigned int seed)
+{
+	m_randomSeed = seed;
 }
 
 bool Terrain::Initialize(ID3D11Device* device, int terrainWidth, int terrainHeight)
@@ -405,11 +415,29 @@ void Terrain::RenderBuffers(ID3D11DeviceContext * deviceContext)
 	return;
 }
 
+bool Terrain::CalculateNormalsAndInitializeBuffers(ID3D11Device* device)
+{
+	bool result = false;
+
+	result = CalculateNormals();
+	if (!result)
+	{
+		return false;
+	}
+
+	result = InitializeBuffers(device);
+	if (!result)
+	{
+		return false;
+	}
+
+	return true;
+}
+
 bool Terrain::GenerateHeightMap(ID3D11Device* device)
 {
-	bool result;
-
-	int index;
+	bool result = false;
+	int index = 0;
 	float height = 0.0;
 
 	m_frequency = (6.283/m_terrainHeight) / m_wavelength; //we want a wavelength of 1 to be a single wave over the whole terrain.  A single wave is 2 pi which is about 6.283
@@ -429,17 +457,39 @@ bool Terrain::GenerateHeightMap(ID3D11Device* device)
 		}
 	}
 
-	result = CalculateNormals();
-	if (!result)
+	result = CalculateNormalsAndInitializeBuffers(device);
+	return result;
+}
+
+bool Terrain::GenerateRandomHeightMap(ID3D11Device* device)
+{
+	bool result = false;
+	int index = 0;
+
+	// Create random engine with the stored seed
+	std::mt19937 randomEngine(m_randomSeed);
+
+	// Create a uniform distribution
+	std::uniform_real_distribution<float> heightDistribution(0.0f, m_amplitude);
+
+	// Loop through the terrain and set random heights
+	for (int j = 0; j < m_terrainHeight; j++)
 	{
-		return false;
+		for (int i = 0; i < m_terrainWidth; i++)
+		{
+			index = (m_terrainHeight * j) + i;
+
+			// Generate random height
+			float randomHeight = heightDistribution(randomEngine);
+
+			m_heightMap[index].x = (float)i;
+			m_heightMap[index].y = randomHeight;
+			m_heightMap[index].z = (float)j;
+		}
 	}
 
-	result = InitializeBuffers(device);
-	if (!result)
-	{
-		return false;
-	}
+	result = CalculateNormalsAndInitializeBuffers(device);
+	return result;
 }
 
 bool Terrain::Update()

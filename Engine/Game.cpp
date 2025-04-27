@@ -407,9 +407,29 @@ void Game::SetupGUI()
 	ImGui_ImplWin32_NewFrame();
 	ImGui::NewFrame();
 
-	ImGui::Begin("Sin Wave Parameters");
-		ImGui::SliderFloat("Wave Amplitude",	m_Terrain.GetAmplitude(), 0.0f, 10.0f);
-		ImGui::SliderFloat("Wavelength",		m_Terrain.GetWavelength(), 0.0f, 1.0f);
+	ImGui::Begin("Procedural Terrain Generation");
+
+	ImGui::Text("Sin Wave Parameters");
+	ImGui::SliderFloat("Wave Amplitude",	m_Terrain.GetAmplitude(), 0.0f, 10.0f);
+	ImGui::SliderFloat("Wavelength",		m_Terrain.GetWavelength(), 0.0f, 1.0f);
+
+    ImGui::Dummy(ImVec2(0.0f, 10.0f));
+
+    if (ImGui::Button("Generate Terrain"))
+    {
+        m_Terrain.GenerateHeightMap(m_deviceResources->GetD3DDevice());
+    }
+
+    ImGui::Dummy(ImVec2(0.0f, 10.0f));
+
+    if (ImGui::Button("Generate Random Terrain"))
+    {
+        unsigned int randomSeed = static_cast<unsigned int>(std::time(nullptr));
+
+        m_Terrain.SetRandomSeed(randomSeed);
+        m_Terrain.GenerateRandomHeightMap(m_deviceResources->GetD3DDevice());
+    }
+
 	ImGui::End();
 }
 

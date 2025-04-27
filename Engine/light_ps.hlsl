@@ -42,7 +42,7 @@ float4 main(InputType input) : SV_TARGET
 	// Sample the pixel color from the texture using the sampler at this texture coordinate location.
 	textureColor = shaderTexture.Sample(SampleType, input.tex);
 	color = color * textureColor;
-    color *= input.colour;
+    //color *= input.colour;
 
     return color;
 }
