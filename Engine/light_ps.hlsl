@@ -28,6 +28,7 @@ float4 main(InputType input) : SV_TARGET
     float3	lightDir;
     float	lightIntensity;
     float4	color;
+    bool isBlack = false;
 
 	// Invert the light direction for calculations.
 	lightDir = normalize(input.position3D - lightPosition);
@@ -42,7 +43,13 @@ float4 main(InputType input) : SV_TARGET
 	// Sample the pixel color from the texture using the sampler at this texture coordinate location.
 	textureColor = shaderTexture.Sample(SampleType, input.tex);
 	color = color * textureColor;
-    //color *= input.colour;
+    
+    isBlack = input.colour.r == 0.0f && input.colour.g == 0.0f && input.colour.b == 0.0f;
+    
+    if (!isBlack)
+    {
+        color *= input.colour;
+    }
 
     return color;
 }
