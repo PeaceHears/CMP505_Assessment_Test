@@ -13,6 +13,12 @@ struct InputCommands
 	bool rotRight;
 	bool rotLeft;
 	bool generate;
+
+	int mouseX;     // Current mouse X position
+	int mouseY;     // Current mouse Y position
+
+	bool up;     // For moving up
+	bool down;   // For moving down
 };
 
 
@@ -25,7 +31,6 @@ public:
 	void Update();
 	bool Quit();
 	InputCommands getGameInput();
-
 
 private:
 	bool m_quitApp;

@@ -15,6 +15,10 @@ public:
 	float							getMoveSpeed();
 	float							getRotationSpeed();
 
+	DirectX::SimpleMath::Vector3 GetForwardVector() const;
+	DirectX::SimpleMath::Vector3 GetRightVector() const;
+	DirectX::SimpleMath::Vector3 GetUpVector() const;
+
 private:
 	DirectX::SimpleMath::Matrix		m_cameraMatrix;			//camera matrix to be passed out and used to set camera position and angle for wrestling
 	DirectX::SimpleMath::Vector3	m_lookat;

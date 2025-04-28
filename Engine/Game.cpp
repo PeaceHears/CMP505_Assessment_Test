@@ -21,6 +21,9 @@ Game::Game() noexcept(false)
 {
     m_deviceResources = std::make_unique<DX::DeviceResources>();
     m_deviceResources->RegisterDeviceNotify(this);
+
+    m_lastMouseX = 0;
+    m_lastMouseY = 0;
 }
 
 Game::~Game()
@@ -72,6 +75,11 @@ void Game::Initialize(HWND window, int width, int height)
 	m_Light.setDiffuseColour(1.0f, 1.0f, 1.0f, 1.0f);
 	m_Light.setPosition(2.0f, 1.0f, 1.0f);
 	m_Light.setDirection(-1.0f, -1.0f, 0.0f);
+
+    m_Drone_Light.setAmbientColour(0.3f, 0.3f, 0.3f, 1.0f);
+    m_Drone_Light.setDiffuseColour(0.5f, 0.5f, 0.5f, 1.0f);
+    m_Drone_Light.setPosition(2.0f, 1.0f, 1.0f);
+    m_Drone_Light.setDirection(-1.0f, -1.0f, 0.0f);
 
 	//setup camera
 	m_Camera01.setPosition(Vector3(0.0f, 0.0f, 4.0f));
@@ -143,36 +151,37 @@ void Game::Update(DX::StepTimer const& timer)
 	//this is hacky,  i dont like this here.  
 	auto device = m_deviceResources->GetD3DDevice();
 
-	//note that currently.  Delta-time is not considered in the game object movement. 
-	if (m_gameInputCommands.left)
-	{
-		Vector3 rotation = m_Camera01.getRotation();
-		rotation.y = rotation.y += m_Camera01.getRotationSpeed();
-		m_Camera01.setRotation(rotation);
-	}
-	if (m_gameInputCommands.right)
-	{
-		Vector3 rotation = m_Camera01.getRotation();
-		rotation.y = rotation.y -= m_Camera01.getRotationSpeed();
-		m_Camera01.setRotation(rotation);
-	}
-	if (m_gameInputCommands.forward)
-	{
-		Vector3 position = m_Camera01.getPosition(); //get the position
-		position += (m_Camera01.getForward()*m_Camera01.getMoveSpeed()); //add the forward vector
-		m_Camera01.setPosition(position);
-	}
-	if (m_gameInputCommands.back)
-	{
-		Vector3 position = m_Camera01.getPosition(); //get the position
-		position -= (m_Camera01.getForward()*m_Camera01.getMoveSpeed()); //add the forward vector
-		m_Camera01.setPosition(position);
-	}
+    // Calculate mouse deltas
+    static int lastMouseX = m_gameInputCommands.mouseX;
+    static int lastMouseY = m_gameInputCommands.mouseY;
 
-	if (m_gameInputCommands.generate)
-	{
-		m_Terrain.GenerateHeightMap(device);
-	}
+    // Calculate delta
+    float mouseDeltaX = static_cast<float>(m_gameInputCommands.mouseX - lastMouseX);
+    float mouseDeltaY = static_cast<float>(m_gameInputCommands.mouseY - lastMouseY);
+
+    // Update last mouse positions
+    lastMouseX = m_gameInputCommands.mouseX;
+    lastMouseY = m_gameInputCommands.mouseY;
+
+    // Camera Rotation
+    Vector3 rotation = m_Camera01.getRotation();
+
+    // Sensitivity adjustment for rotation
+    float sensitivity = 0.1f;
+
+    // Horizontal rotation (Yaw) - left/right mouse movement
+    rotation.y -= mouseDeltaX * sensitivity;
+
+    // Vertical rotation (Pitch) - up/down mouse movement
+    rotation.x -= mouseDeltaY * sensitivity;
+
+    // Clamp vertical rotation to prevent flipping
+    rotation.x = std::max(-89.0f, std::min(rotation.x, 89.0f));
+
+    // Set the new rotation for the camera
+    m_Camera01.setRotation(rotation);
+
+	UpdateCameraMovement();
 
 	m_Camera01.Update();	//camera update.
 	m_Terrain.Update();		//terrain update.  doesnt do anything at the moment. 
@@ -257,13 +266,20 @@ void Game::Render()
 	//prepare transform for floor object. 
 	m_world = SimpleMath::Matrix::Identity; //set world back to identity
 	SimpleMath::Matrix newPosition3 = SimpleMath::Matrix::CreateTranslation(0.0f, -0.6f, 0.0f);
-	SimpleMath::Matrix newScale = SimpleMath::Matrix::CreateScale(0.1);		//scale the terrain down a little. 
+	SimpleMath::Matrix newScale = SimpleMath::Matrix::CreateScale(0.1f);		//scale the terrain down a little. 
 	m_world = m_world * newScale *newPosition3;
 
-	//setup and draw cube
 	m_BasicShaderPair.EnableShader(context);
 	m_BasicShaderPair.SetShaderParameters(context, &m_world, &m_view, &m_projection, &m_Light, m_texture1.Get());
+
 	m_Terrain.Render(context);
+
+    auto droneWorldMatrix = m_BasicModel2.GetWorldMatrix();
+    droneWorldMatrix = droneWorldMatrix * SimpleMath::Matrix::CreateScale(0.1f);
+
+    m_BasicShaderPair.EnableShader(context);
+    m_BasicShaderPair.SetShaderParameters(context, &droneWorldMatrix, &m_view, &m_projection, &m_Drone_Light, m_texture2.Get());
+
 	m_BasicModel2.Render(context);
 
 	//render our GUI
@@ -382,6 +398,7 @@ void Game::CreateDeviceDependentResources()
 
 	//load and set up our Vertex and Pixel Shaders
 	m_BasicShaderPair.InitStandard(device, L"light_vs.cso", L"light_ps.cso");
+    m_Drone_Light_Shader.InitStandard(device, L"light_vs.cso", L"light_ps.cso");
 
 	//load Textures
 	CreateDDSTextureFromFile(device, L"seafloor.dds",		nullptr,	m_texture1.ReleaseAndGetAddressOf());
@@ -389,7 +406,6 @@ void Game::CreateDeviceDependentResources()
 
 	//Initialise Render to texture
 	m_FirstRenderPass = new RenderTexture(device, 800, 600, 1, 2);	//for our rendering, We dont use the last two properties. but.  they cant be zero and they cant be the same. 
-
 }
 
 // Allocate all memory resources that change on a window SizeChanged event.
@@ -477,6 +493,132 @@ void Game::HandleTimerExpiration()
     m_gameTimer.Restart();
 }
 
+void Game::UpdateDronePosition()
+{
+    // Get drone's current forward, right, and up vectors based on its rotation
+    DirectX::SimpleMath::Matrix droneRotationMatrix =
+        DirectX::SimpleMath::Matrix::CreateFromYawPitchRoll(
+            m_BasicModel2.GetRotation().y * 3.14159f / 180.0f,
+            m_BasicModel2.GetRotation().x * 3.14159f / 180.0f,
+            m_BasicModel2.GetRotation().z * 3.14159f / 180.0f
+        );
+
+    Vector3 droneForward = Vector3::Transform(Vector3::Forward, droneRotationMatrix);
+    Vector3 droneRight = Vector3::Transform(Vector3::Right, droneRotationMatrix);
+    Vector3 droneUp = Vector3::Transform(Vector3::Up, droneRotationMatrix);
+
+    // Movement speed
+    float moveSpeed = 0.1f;
+
+    // Calculate drone movement
+    Vector3 droneMovement = Vector3::Zero;
+
+    // Movement based on mouse and WASD
+    float mouseDeltaX = static_cast<float>(m_gameInputCommands.mouseX - m_lastMouseX);
+    float mouseDeltaY = static_cast<float>(m_gameInputCommands.mouseY - m_lastMouseY);
+
+    // Rotation based on mouse movement
+    Vector3 droneRotation = m_BasicModel2.GetRotation();
+    droneRotation.y -= mouseDeltaX * 0.1f;  // Yaw
+    droneRotation.x -= mouseDeltaY * 0.1f;  // Pitch
+
+    // Clamp pitch
+    droneRotation.x = std::max(-89.0f, std::min(droneRotation.x, 89.0f));
+
+    // WASD Movement
+    if (m_gameInputCommands.forward)
+    {
+        droneMovement -= droneUp * moveSpeed;
+    }
+    if (m_gameInputCommands.back)
+    {
+        droneMovement += droneUp * moveSpeed;
+    }
+    if (m_gameInputCommands.left)
+    {
+        droneMovement += droneRight * moveSpeed;
+    }
+    if (m_gameInputCommands.right)
+    {
+        droneMovement -= droneRight * moveSpeed;
+    }
+
+    // Vertical movement
+    if (m_gameInputCommands.up)
+    {
+        droneMovement += droneForward * moveSpeed;
+    }
+    if (m_gameInputCommands.down)
+    {
+        droneMovement -= droneForward * moveSpeed;
+    }
+
+    // Update drone position
+    Vector3 dronePosition = m_BasicModel2.GetPosition();
+    dronePosition += droneMovement;
+
+    // Set drone position and rotation
+    m_BasicModel2.SetPosition(dronePosition);
+    m_BasicModel2.SetRotation(droneRotation);
+
+    // Update camera to follow drone
+    Vector3 cameraOffset = droneForward * -5.0f + droneUp * 2.0f; // Position behind and slightly above drone
+    Vector3 cameraPosition = dronePosition + cameraOffset;
+
+    // Set camera position
+    m_Camera01.setPosition(cameraPosition);
+
+    // Camera rotation matches drone rotation
+    m_Camera01.setRotation(droneRotation);
+
+    // Update last mouse positions
+    m_lastMouseX = m_gameInputCommands.mouseX;
+    m_lastMouseY = m_gameInputCommands.mouseY;
+}
+
+void Game::UpdateCameraMovement()
+{
+    // Movement speed
+    float moveSpeed = 0.1f;
+
+    // Calculate camera movement based on WASD input
+    Vector3 cameraMovement = Vector3::Zero;
+
+    // Forward and backward movement
+    if (m_gameInputCommands.forward)
+    {
+        cameraMovement += m_Camera01.GetForwardVector() * moveSpeed;
+    }
+    if (m_gameInputCommands.back)
+    {
+        cameraMovement -= m_Camera01.GetForwardVector() * moveSpeed;
+    }
+
+    // Strafe left and right movement
+    if (m_gameInputCommands.left)
+    {
+        cameraMovement -= m_Camera01.GetRightVector() * moveSpeed;
+    }
+    if (m_gameInputCommands.right)
+    {
+        cameraMovement += m_Camera01.GetRightVector() * moveSpeed;
+    }
+
+    // Vertical movement (optional)
+    if (m_gameInputCommands.up)
+    {
+        cameraMovement += Vector3::UnitY * moveSpeed; // Straight up
+    }
+    if (m_gameInputCommands.down)
+    {
+        cameraMovement -= Vector3::UnitY * moveSpeed; // Straight down
+    }
+
+    // Update camera position
+    Vector3 cameraPosition = m_Camera01.getPosition();
+    cameraPosition += cameraMovement;
+    m_Camera01.setPosition(cameraPosition);
+}
 
 void Game::OnDeviceLost()
 {

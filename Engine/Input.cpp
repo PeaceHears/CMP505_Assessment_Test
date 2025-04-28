@@ -32,6 +32,9 @@ void Input::Update()
 	auto mouse = m_mouse->GetState();   //updates the basic mouse state
 	m_MouseTracker.Update(mouse);		//updates the more advanced mouse state. 
 
+	m_GameInput.mouseX = mouse.x;
+	m_GameInput.mouseY = mouse.y;
+
 	if (kb.Escape)// check has escape been pressed.  if so, quit out. 
 	{
 		m_quitApp = true;
@@ -56,6 +59,24 @@ void Input::Update()
 	//space
 	if (kb.Space) m_GameInput.generate = true;
 	else		m_GameInput.generate = false;
+
+	if (kb.E)
+	{
+		m_GameInput.up = true;
+	}
+	else
+	{
+		m_GameInput.up = false;
+	}
+
+	if (kb.Q)
+	{
+		m_GameInput.down = true;
+	}
+	else
+	{
+		m_GameInput.down = false;
+	}
 }
 
 bool Input::Quit()

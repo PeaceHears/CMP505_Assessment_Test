@@ -101,3 +101,35 @@ float Camera::getRotationSpeed()
 {
 	return m_camRotRate;
 }
+
+DirectX::SimpleMath::Vector3 Camera::GetForwardVector() const
+{
+	return m_forward;
+
+	// Calculate forward vector based on current rotation
+	float pitch = m_orientation.x * 3.14159f / 180.0f;
+	float yaw = m_orientation.y * 3.14159f / 180.0f;
+
+	return DirectX::SimpleMath::Vector3(
+		std::sin(yaw) * std::cos(pitch),
+		std::sin(pitch),
+		std::cos(yaw) * std::cos(pitch)
+	);
+}
+
+DirectX::SimpleMath::Vector3 Camera::GetRightVector() const
+{
+	return m_right;
+
+	float yaw = m_orientation.y * 3.14159f / 180.0f;
+	return DirectX::SimpleMath::Vector3(
+		std::cos(yaw),
+		0.0f,
+		-std::sin(yaw)
+	);
+}
+
+DirectX::SimpleMath::Vector3 Camera::GetUpVector() const
+{
+	return DirectX::SimpleMath::Vector3::UnitY;
+}

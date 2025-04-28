@@ -139,5 +139,4 @@ void Shader::EnableShader(ID3D11DeviceContext * context)
 	context->PSSetShader(m_pixelShader.Get(), 0, 0);				//turn on pixel shader
 	// Set the sampler state in the pixel shader.
 	context->PSSetSamplers(0, 1, &m_sampleState);
-
 }

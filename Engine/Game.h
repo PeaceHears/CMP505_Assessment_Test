@@ -63,6 +63,8 @@ private:
     void CreateWindowSizeDependentResources();
 	void SetupGUI();
     void HandleTimerExpiration();
+    void UpdateDronePosition();
+    void UpdateCameraMovement();
 
     // Device resources.
     std::unique_ptr<DX::DeviceResources>    m_deviceResources;
@@ -88,6 +90,7 @@ private:
 
 	//lights
 	Light																	m_Light;
+    Light																	m_Drone_Light;
 
 	//Cameras
 	Camera																	m_Camera01;
@@ -98,6 +101,7 @@ private:
 
 	//Shaders
 	Shader																	m_BasicShaderPair;
+    Shader																	m_Drone_Light_Shader;
 
 	//Scene. 
 	Terrain																	m_Terrain;
@@ -134,4 +138,7 @@ private:
 
     GameTimer m_gameTimer;
     bool m_isTimerPaused = false;
+
+    int m_lastMouseX = 0;
+    int m_lastMouseY = 0;
 };
