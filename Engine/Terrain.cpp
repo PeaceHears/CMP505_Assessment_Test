@@ -1,7 +1,7 @@
 #include "pch.h"
 #include "Terrain.h"
 #include <random>
-
+#include "Utils.h"
 
 Terrain::Terrain()
 {
@@ -751,4 +751,13 @@ float* Terrain::GetWavelength()
 float* Terrain::GetAmplitude()
 {
 	return &m_amplitude;
+}
+
+const DirectX::SimpleMath::Vector4& Terrain::GetRandomVoronoiRegionColour() const
+{
+	const auto voronoiRegionsCount = m_voronoiRegions.size();
+	const auto randomIndex = Utils::GetRandomInt(0, voronoiRegionsCount - 1);
+	const auto randomRegion = m_voronoiRegions[randomIndex];
+
+	return randomRegion.color;
 }

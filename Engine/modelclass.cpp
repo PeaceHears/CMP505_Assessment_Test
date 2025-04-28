@@ -17,10 +17,10 @@ ModelClass::~ModelClass()
 }
 
 
-bool ModelClass::InitializeModel(ID3D11Device *device, char* filename)
+bool ModelClass::InitializeModel(ID3D11Device *device, char* filename, bool isColoured)
 {
-	LoadModel(filename);
-	InitializeBuffers(device);
+	LoadModel(filename, isColoured);
+	InitializeBuffers(device, isColoured);
 	return false;
 }
 
@@ -103,7 +103,7 @@ int ModelClass::GetIndexCount()
 }
 
 
-bool ModelClass::InitializeBuffers(ID3D11Device* device)
+bool ModelClass::InitializeBuffers(ID3D11Device* device, const bool isColoured)
 {
 	VertexType* vertices;
 	unsigned long* indices;
@@ -129,10 +129,19 @@ bool ModelClass::InitializeBuffers(ID3D11Device* device)
 	// Load the vertex array and index array with data from the pre-fab
 	for (i = 0; i < m_vertexCount; i++)
 	{
-		vertices[i].position	= DirectX::SimpleMath::Vector3(preFabVertices[i].position.x, preFabVertices[i].position.y, preFabVertices[i].position.z);
-		vertices[i].texture		= DirectX::SimpleMath::Vector2(preFabVertices[i].textureCoordinate.x, preFabVertices[i].textureCoordinate.y);
-		vertices[i].normal		= DirectX::SimpleMath::Vector3(preFabVertices[i].normal.x, preFabVertices[i].normal.y, preFabVertices[i].normal.z);
-		vertices[i].colour		= DirectX::SimpleMath::Vector4();
+		if (isColoured)
+		{
+			vertices[i].position = DirectX::SimpleMath::Vector3(preFabColouredVertices[i].position.x, preFabColouredVertices[i].position.y, preFabColouredVertices[i].position.z);
+			vertices[i].texture = DirectX::SimpleMath::Vector2(preFabColouredVertices[i].textureCoordinate.x, preFabColouredVertices[i].textureCoordinate.y);
+			vertices[i].normal = DirectX::SimpleMath::Vector3(preFabColouredVertices[i].normal.x, preFabColouredVertices[i].normal.y, preFabColouredVertices[i].normal.z);
+			vertices[i].colour = DirectX::SimpleMath::Vector4(preFabColouredVertices[i].color.x, preFabColouredVertices[i].color.y, preFabColouredVertices[i].color.z, preFabColouredVertices[i].color.w);
+		}
+		else
+		{
+			vertices[i].position = DirectX::SimpleMath::Vector3(preFabVertices[i].position.x, preFabVertices[i].position.y, preFabVertices[i].position.z);
+			vertices[i].texture = DirectX::SimpleMath::Vector2(preFabVertices[i].textureCoordinate.x, preFabVertices[i].textureCoordinate.y);
+			vertices[i].normal = DirectX::SimpleMath::Vector3(preFabVertices[i].normal.x, preFabVertices[i].normal.y, preFabVertices[i].normal.z);
+		}
 	}
 	for (i = 0; i < m_indexCount; i++)
 	{
@@ -232,7 +241,7 @@ void ModelClass::RenderBuffers(ID3D11DeviceContext* deviceContext)
 }
 
 
-bool ModelClass::LoadModel(char* filename)
+bool ModelClass::LoadModel(char* filename, bool isColoured)
 {
 	std::vector<XMFLOAT3> verts;
 	std::vector<XMFLOAT3> norms;
@@ -310,20 +319,39 @@ bool ModelClass::LoadModel(char* filename)
 	// "Unroll" the loaded obj information into a list of triangles.
 	for (int f = 0; f < (int)faces.size(); f += 3)
 	{
-		VertexPositionNormalTexture tempVertex;
-		tempVertex.position.x = verts[(faces[f + 0] - 1)].x;
-		tempVertex.position.y = verts[(faces[f + 0] - 1)].y;
-		tempVertex.position.z = verts[(faces[f + 0] - 1)].z;
-
-		tempVertex.textureCoordinate.x = texCs[(faces[f + 1] - 1)].x;
-		tempVertex.textureCoordinate.y = texCs[(faces[f + 1] - 1)].y;
-			
-		tempVertex.normal.x = norms[(faces[f + 2] - 1)].x;
-		tempVertex.normal.y = norms[(faces[f + 2] - 1)].y;
-		tempVertex.normal.z = norms[(faces[f + 2] - 1)].z;
-
 		//increase index count
-		preFabVertices.push_back(tempVertex);
+		if (isColoured)
+		{
+			VertexPositionNormalColorTexture tempVertex;
+			tempVertex.position.x = verts[(faces[f + 0] - 1)].x;
+			tempVertex.position.y = verts[(faces[f + 0] - 1)].y;
+			tempVertex.position.z = verts[(faces[f + 0] - 1)].z;
+
+			tempVertex.textureCoordinate.x = texCs[(faces[f + 1] - 1)].x;
+			tempVertex.textureCoordinate.y = texCs[(faces[f + 1] - 1)].y;
+
+			tempVertex.normal.x = norms[(faces[f + 2] - 1)].x;
+			tempVertex.normal.y = norms[(faces[f + 2] - 1)].y;
+			tempVertex.normal.z = norms[(faces[f + 2] - 1)].z;
+
+			preFabColouredVertices.push_back(tempVertex);
+		}
+		else
+		{
+			VertexPositionNormalTexture tempVertex;
+			tempVertex.position.x = verts[(faces[f + 0] - 1)].x;
+			tempVertex.position.y = verts[(faces[f + 0] - 1)].y;
+			tempVertex.position.z = verts[(faces[f + 0] - 1)].z;
+
+			tempVertex.textureCoordinate.x = texCs[(faces[f + 1] - 1)].x;
+			tempVertex.textureCoordinate.y = texCs[(faces[f + 1] - 1)].y;
+
+			tempVertex.normal.x = norms[(faces[f + 2] - 1)].x;
+			tempVertex.normal.y = norms[(faces[f + 2] - 1)].y;
+			tempVertex.normal.z = norms[(faces[f + 2] - 1)].z;
+
+			preFabVertices.push_back(tempVertex);
+		}
 		
 		int tempIndex;
 		tempIndex = vIndex;
@@ -387,4 +415,17 @@ DirectX::SimpleMath::Matrix ModelClass::GetWorldMatrix() const
 		m_rotation.x * 3.14159f / 180.0f,  // Pitch
 		m_rotation.z * 3.14159f / 180.0f   // Roll
 	) * DirectX::SimpleMath::Matrix::CreateTranslation(m_position);
+}
+
+void ModelClass::ChangeColour(ID3D11Device* device, const DirectX::SimpleMath::Vector4& colour)
+{
+	for (int i = 0; i < m_vertexCount; i++)
+	{
+		preFabColouredVertices[i].color.x = colour.x;
+		preFabColouredVertices[i].color.y = colour.y;
+		preFabColouredVertices[i].color.z = colour.z;
+		preFabColouredVertices[i].color.w = colour.w;
+	}
+
+	InitializeBuffers(device, true);
 }

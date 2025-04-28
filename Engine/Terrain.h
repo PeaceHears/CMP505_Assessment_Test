@@ -47,6 +47,8 @@ public:
 	bool GeneratePerlinNoiseTerrain(ID3D11Device* device, float scale = 1.0f, int octaves = 4);
 	bool GenerateVoronoiRegions(ID3D11Device* device, int numRegions);
 
+	const DirectX::SimpleMath::Vector4& GetRandomVoronoiRegionColour() const;
+
 private:
 	bool CalculateNormals();
 	void Shutdown();

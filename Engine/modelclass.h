@@ -34,7 +34,7 @@ public:
 	ModelClass();
 	~ModelClass();
 
-	bool InitializeModel(ID3D11Device *device, char* filename);
+	bool InitializeModel(ID3D11Device *device, char* filename, bool isColoured = false);
 	bool InitializeTeapot(ID3D11Device*);
 	bool InitializeSphere(ID3D11Device*);
 	bool InitializeBox(ID3D11Device*, float xwidth, float yheight, float zdepth);
@@ -54,11 +54,13 @@ public:
 
 	DirectX::SimpleMath::Matrix GetWorldMatrix() const;
 
+	void ChangeColour(ID3D11Device* device, const DirectX::SimpleMath::Vector4& colour);
+
 private:
-	bool InitializeBuffers(ID3D11Device*);
+	bool InitializeBuffers(ID3D11Device*, const bool isColoured = false);
 	void ShutdownBuffers();
 	void RenderBuffers(ID3D11DeviceContext*);
-	bool LoadModel(char*);
+	bool LoadModel(char*, bool isColoured = false);
 
 	void ReleaseModel();
 
@@ -68,6 +70,7 @@ private:
 
 	//arrays for our generated objects Made by directX
 	std::vector<VertexPositionNormalTexture> preFabVertices;
+	std::vector<VertexPositionNormalColorTexture> preFabColouredVertices;
 	std::vector<uint16_t> preFabIndices;
 
 	DirectX::SimpleMath::Vector3 m_scale = DirectX::SimpleMath::Vector3::Zero;

@@ -88,6 +88,8 @@ void Game::Initialize(HWND window, int width, int height)
 	m_Terrain.GeneratePerlinNoiseTerrain(m_deviceResources->GetD3DDevice(), 10.0f, 5);
     m_Terrain.GenerateVoronoiRegions(m_deviceResources->GetD3DDevice(), 5);
 
+    m_BasicModel2.ChangeColour(m_deviceResources->GetD3DDevice(), m_Terrain.GetRandomVoronoiRegionColour());
+
 	m_gameTimer.SetStartTime(m_timer, 10.0f);
     m_gameTimer.Start();
 
@@ -397,7 +399,7 @@ void Game::CreateDeviceDependentResources()
 
 	//setup our test model
 	m_BasicModel.InitializeSphere(device);
-	m_BasicModel2.InitializeModel(device,"drone.obj");
+	m_BasicModel2.InitializeModel(device,"drone.obj", true);
 	m_BasicModel3.InitializeBox(device, 10.0f, 0.1f, 10.0f);	//box includes dimensions
 
 	//load and set up our Vertex and Pixel Shaders
@@ -492,8 +494,11 @@ void Game::SetupGUI()
 
 void Game::HandleTimerExpiration()
 {
+    const auto randomVoronoiRegionColour = m_Terrain.GetRandomVoronoiRegionColour();
+
     m_Terrain.GeneratePerlinNoiseTerrain(m_deviceResources->GetD3DDevice(), 10.0f, 5);
 	m_Terrain.GenerateVoronoiRegions(m_deviceResources->GetD3DDevice(), 5);
+	m_BasicModel2.ChangeColour(m_deviceResources->GetD3DDevice(), randomVoronoiRegionColour);
     m_gameTimer.Restart();
 }
 

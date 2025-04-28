@@ -69,6 +69,7 @@
       <Filter>Imgui</Filter>
     </ClInclude>
     <ClInclude Include="GameTimer.h" />
+    <ClInclude Include="Utils.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="pch.cpp" />
@@ -115,6 +116,7 @@
       <Filter>Imgui</Filter>
     </ClCompile>
     <ClCompile Include="GameTimer.cpp" />
+    <ClCompile Include="Utils.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="resource.rc" />
