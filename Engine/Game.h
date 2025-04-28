@@ -12,7 +12,7 @@
 #include "Camera.h"
 #include "RenderTexture.h"
 #include "Terrain.h"
-
+#include "GameTimer.h"
 
 // A basic game implementation that creates a D3D11 device and
 // provides a game loop.
@@ -62,6 +62,7 @@ private:
     void CreateDeviceDependentResources();
     void CreateWindowSizeDependentResources();
 	void SetupGUI();
+    void HandleTimerExpiration();
 
     // Device resources.
     std::unique_ptr<DX::DeviceResources>    m_deviceResources;
@@ -130,4 +131,7 @@ private:
     DirectX::SimpleMath::Matrix                                             m_world;
     DirectX::SimpleMath::Matrix                                             m_view;
     DirectX::SimpleMath::Matrix                                             m_projection;
+
+    GameTimer m_gameTimer;
+    bool m_isTimerPaused = false;
 };

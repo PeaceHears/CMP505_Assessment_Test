@@ -68,6 +68,7 @@
     <ClInclude Include="imgui_impl_win32.h">
       <Filter>Imgui</Filter>
     </ClInclude>
+    <ClInclude Include="GameTimer.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="pch.cpp" />
@@ -113,6 +114,7 @@
     <ClCompile Include="imgui_impl_win32.cpp">
       <Filter>Imgui</Filter>
     </ClCompile>
+    <ClCompile Include="GameTimer.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="resource.rc" />

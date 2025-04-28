@@ -77,6 +77,8 @@ void Game::Initialize(HWND window, int width, int height)
 	m_Camera01.setPosition(Vector3(0.0f, 0.0f, 4.0f));
 	m_Camera01.setRotation(Vector3(-90.0f, -180.0f, 0.0f));	//orientation is -90 becuase zero will be looking up at the sky straight up. 
 
+	m_gameTimer.SetStartTime(m_timer, 60.0f);
+    m_gameTimer.Start();
 	
 #ifdef DXTK_AUDIO
     // Create DirectXTK for Audio objects
@@ -178,6 +180,13 @@ void Game::Update(DX::StepTimer const& timer)
 	/*create our UI*/
 	SetupGUI();
 
+    m_gameTimer.UpdateRemainingTime();
+
+    if (m_gameTimer.IsExpired())
+    {
+        HandleTimerExpiration();
+    }
+
 #ifdef DXTK_AUDIO
     m_audioTimerAcc -= (float)timer.GetElapsedSeconds();
     if (m_audioTimerAcc < 0)
@@ -228,10 +237,13 @@ void Game::Render()
 	auto renderTargetView = m_deviceResources->GetRenderTargetView();
 	auto depthTargetView = m_deviceResources->GetDepthStencilView();
 
-    // Draw Text to the screen
+    // Draw Title to the screen
     m_sprites->Begin();
-		m_font->DrawString(m_sprites.get(), L"Procedural Methods", XMFLOAT2(10, 10), Colors::Yellow);
+	m_font->DrawString(m_sprites.get(), L"Advanced Procedural Methods", XMFLOAT2(10, 10), Colors::Yellow);
     m_sprites->End();
+
+    // Draw Game Timer to the screen 
+	m_gameTimer.Render(m_sprites, m_font);
 
 	//Set Rendering states. 
 	context->OMSetBlendState(m_states->Opaque(), nullptr, 0xFFFFFFFF);
@@ -453,6 +465,11 @@ void Game::SetupGUI()
     }
 
 	ImGui::End();
+}
+
+void Game::HandleTimerExpiration()
+{
+    m_gameTimer.Restart();
 }
 
 
