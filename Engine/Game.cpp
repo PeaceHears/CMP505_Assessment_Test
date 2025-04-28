@@ -77,6 +77,7 @@ void Game::Initialize(HWND window, int width, int height)
 	m_Camera01.setPosition(Vector3(0.0f, 0.0f, 4.0f));
 	m_Camera01.setRotation(Vector3(-90.0f, -180.0f, 0.0f));	//orientation is -90 becuase zero will be looking up at the sky straight up. 
 
+	m_Terrain.GeneratePerlinNoiseTerrain(m_deviceResources->GetD3DDevice(), 10.0f, 5);
     m_Terrain.GenerateVoronoiRegions(m_deviceResources->GetD3DDevice(), 5);
 
 	m_gameTimer.SetStartTime(m_timer, 10.0f);
@@ -471,6 +472,7 @@ void Game::SetupGUI()
 
 void Game::HandleTimerExpiration()
 {
+    m_Terrain.GeneratePerlinNoiseTerrain(m_deviceResources->GetD3DDevice(), 10.0f, 5);
 	m_Terrain.GenerateVoronoiRegions(m_deviceResources->GetD3DDevice(), 5);
     m_gameTimer.Restart();
 }
