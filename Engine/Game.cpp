@@ -90,6 +90,8 @@ void Game::Initialize(HWND window, int width, int height)
 
 	m_gameTimer.SetStartTime(m_timer, 10.0f);
     m_gameTimer.Start();
+
+    SetupDrone();
 	
 #ifdef DXTK_AUDIO
     // Create DirectXTK for Audio objects
@@ -181,7 +183,8 @@ void Game::Update(DX::StepTimer const& timer)
     // Set the new rotation for the camera
     m_Camera01.setRotation(rotation);
 
-	UpdateCameraMovement();
+    UpdateCameraMovement();
+    UpdateDroneMovement();
 
 	m_Camera01.Update();	//camera update.
 	m_Terrain.Update();		//terrain update.  doesnt do anything at the moment. 
@@ -267,15 +270,16 @@ void Game::Render()
 	m_world = SimpleMath::Matrix::Identity; //set world back to identity
 	SimpleMath::Matrix newPosition3 = SimpleMath::Matrix::CreateTranslation(0.0f, -0.6f, 0.0f);
 	SimpleMath::Matrix newScale = SimpleMath::Matrix::CreateScale(0.1f);		//scale the terrain down a little. 
-	m_world = m_world * newScale *newPosition3;
+	m_world = m_world * newScale * newPosition3;
 
 	m_BasicShaderPair.EnableShader(context);
 	m_BasicShaderPair.SetShaderParameters(context, &m_world, &m_view, &m_projection, &m_Light, m_texture1.Get());
 
 	m_Terrain.Render(context);
 
-    auto droneWorldMatrix = m_BasicModel2.GetWorldMatrix();
-    droneWorldMatrix = droneWorldMatrix * SimpleMath::Matrix::CreateScale(0.1f);
+    SimpleMath::Matrix droneWorldMatrix = m_BasicModel2.GetWorldMatrix();
+    SimpleMath::Matrix droneScale = SimpleMath::Matrix::CreateScale(0.1f);
+    //droneWorldMatrix *= droneScale;
 
     m_BasicShaderPair.EnableShader(context);
     m_BasicShaderPair.SetShaderParameters(context, &droneWorldMatrix, &m_view, &m_projection, &m_Drone_Light, m_texture2.Get());
@@ -493,87 +497,28 @@ void Game::HandleTimerExpiration()
     m_gameTimer.Restart();
 }
 
-void Game::UpdateDronePosition()
+void Game::SetupDrone()
 {
-    // Get drone's current forward, right, and up vectors based on its rotation
-    DirectX::SimpleMath::Matrix droneRotationMatrix =
-        DirectX::SimpleMath::Matrix::CreateFromYawPitchRoll(
-            m_BasicModel2.GetRotation().y * 3.14159f / 180.0f,
-            m_BasicModel2.GetRotation().x * 3.14159f / 180.0f,
-            m_BasicModel2.GetRotation().z * 3.14159f / 180.0f
-        );
+    // Set the fixed position where the drone should appear
+    Vector3 dronePosition = m_Camera01.getPosition() + Vector3(0, 5.0f, -10.0f); // Adjust height and distance
+	m_BasicModel2.SetScale(Vector3(0.1f, 0.1f, 0.1f)); // Set the scale of the drone model
+    m_BasicModel2.SetRotation(Vector3(0.0f, 0.0f, 0.0f)); // Set the desired rotation for static effect
+    m_BasicModel2.SetPosition(dronePosition); // Set the drone position
+}
 
-    Vector3 droneForward = Vector3::Transform(Vector3::Forward, droneRotationMatrix);
-    Vector3 droneRight = Vector3::Transform(Vector3::Right, droneRotationMatrix);
-    Vector3 droneUp = Vector3::Transform(Vector3::Up, droneRotationMatrix);
+void Game::UpdateDroneMovement()
+{
+    // Keep drone at a fixed offset from camera
+    Vector3 cameraPosition = m_Camera01.getPosition();
 
-    // Movement speed
-    float moveSpeed = 0.1f;
+    // Define fixed offset (2 units in front of the camera and slightly above)
+    Vector3 droneOffset = m_Camera01.GetForwardVector() * 1.0f + m_Camera01.GetUpVector() * 0.1f;
 
-    // Calculate drone movement
-    Vector3 droneMovement = Vector3::Zero;
+    // Update drone position to camera position plus the offset
+    Vector3 dronePosition = cameraPosition + droneOffset;
 
-    // Movement based on mouse and WASD
-    float mouseDeltaX = static_cast<float>(m_gameInputCommands.mouseX - m_lastMouseX);
-    float mouseDeltaY = static_cast<float>(m_gameInputCommands.mouseY - m_lastMouseY);
-
-    // Rotation based on mouse movement
-    Vector3 droneRotation = m_BasicModel2.GetRotation();
-    droneRotation.y -= mouseDeltaX * 0.1f;  // Yaw
-    droneRotation.x -= mouseDeltaY * 0.1f;  // Pitch
-
-    // Clamp pitch
-    droneRotation.x = std::max(-89.0f, std::min(droneRotation.x, 89.0f));
-
-    // WASD Movement
-    if (m_gameInputCommands.forward)
-    {
-        droneMovement -= droneUp * moveSpeed;
-    }
-    if (m_gameInputCommands.back)
-    {
-        droneMovement += droneUp * moveSpeed;
-    }
-    if (m_gameInputCommands.left)
-    {
-        droneMovement += droneRight * moveSpeed;
-    }
-    if (m_gameInputCommands.right)
-    {
-        droneMovement -= droneRight * moveSpeed;
-    }
-
-    // Vertical movement
-    if (m_gameInputCommands.up)
-    {
-        droneMovement += droneForward * moveSpeed;
-    }
-    if (m_gameInputCommands.down)
-    {
-        droneMovement -= droneForward * moveSpeed;
-    }
-
-    // Update drone position
-    Vector3 dronePosition = m_BasicModel2.GetPosition();
-    dronePosition += droneMovement;
-
-    // Set drone position and rotation
+    // Set the updated position to the drone
     m_BasicModel2.SetPosition(dronePosition);
-    m_BasicModel2.SetRotation(droneRotation);
-
-    // Update camera to follow drone
-    Vector3 cameraOffset = droneForward * -5.0f + droneUp * 2.0f; // Position behind and slightly above drone
-    Vector3 cameraPosition = dronePosition + cameraOffset;
-
-    // Set camera position
-    m_Camera01.setPosition(cameraPosition);
-
-    // Camera rotation matches drone rotation
-    m_Camera01.setRotation(droneRotation);
-
-    // Update last mouse positions
-    m_lastMouseX = m_gameInputCommands.mouseX;
-    m_lastMouseY = m_gameInputCommands.mouseY;
 }
 
 void Game::UpdateCameraMovement()

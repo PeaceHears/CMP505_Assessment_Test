@@ -27,6 +27,7 @@ private:
 		DirectX::SimpleMath::Vector3 position;
 		DirectX::SimpleMath::Vector2 texture;
 		DirectX::SimpleMath::Vector3 normal;
+		DirectX::SimpleMath::Vector4 colour;
 	};
 
 public:
@@ -42,6 +43,16 @@ public:
 	
 	int GetIndexCount();
 
+	void SetScale(const DirectX::SimpleMath::Vector3& scale);
+	DirectX::SimpleMath::Vector3 GetScale() const;
+
+	void SetPosition(const DirectX::SimpleMath::Vector3& position);
+	DirectX::SimpleMath::Vector3 GetPosition() const;
+
+	void SetRotation(const DirectX::SimpleMath::Vector3& rotation);
+	DirectX::SimpleMath::Vector3 GetRotation() const;
+
+	DirectX::SimpleMath::Matrix GetWorldMatrix() const;
 
 private:
 	bool InitializeBuffers(ID3D11Device*);
@@ -58,6 +69,10 @@ private:
 	//arrays for our generated objects Made by directX
 	std::vector<VertexPositionNormalTexture> preFabVertices;
 	std::vector<uint16_t> preFabIndices;
+
+	DirectX::SimpleMath::Vector3 m_scale = DirectX::SimpleMath::Vector3::Zero;
+	DirectX::SimpleMath::Vector3 m_position = DirectX::SimpleMath::Vector3::Zero;
+	DirectX::SimpleMath::Vector3 m_rotation = DirectX::SimpleMath::Vector3::Zero;
 
 };
 

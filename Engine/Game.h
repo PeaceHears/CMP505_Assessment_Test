@@ -63,8 +63,9 @@ private:
     void CreateWindowSizeDependentResources();
 	void SetupGUI();
     void HandleTimerExpiration();
-    void UpdateDronePosition();
+    void SetupDrone();
     void UpdateCameraMovement();
+    void UpdateDroneMovement();
 
     // Device resources.
     std::unique_ptr<DX::DeviceResources>    m_deviceResources;

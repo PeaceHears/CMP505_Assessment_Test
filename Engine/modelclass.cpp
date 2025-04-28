@@ -132,6 +132,7 @@ bool ModelClass::InitializeBuffers(ID3D11Device* device)
 		vertices[i].position	= DirectX::SimpleMath::Vector3(preFabVertices[i].position.x, preFabVertices[i].position.y, preFabVertices[i].position.z);
 		vertices[i].texture		= DirectX::SimpleMath::Vector2(preFabVertices[i].textureCoordinate.x, preFabVertices[i].textureCoordinate.y);
 		vertices[i].normal		= DirectX::SimpleMath::Vector3(preFabVertices[i].normal.x, preFabVertices[i].normal.y, preFabVertices[i].normal.z);
+		vertices[i].colour		= DirectX::SimpleMath::Vector4();
 	}
 	for (i = 0; i < m_indexCount; i++)
 	{
@@ -343,4 +344,47 @@ bool ModelClass::LoadModel(char* filename)
 void ModelClass::ReleaseModel()
 {
 	return;
+}
+
+void ModelClass::SetScale(const DirectX::SimpleMath::Vector3& scale)
+{
+	m_scale = scale;
+}
+
+DirectX::SimpleMath::Vector3 ModelClass::GetScale() const
+{
+	return m_scale;
+}
+
+void ModelClass::SetPosition(const DirectX::SimpleMath::Vector3& position)
+{
+	m_position = position;
+}
+
+DirectX::SimpleMath::Vector3 ModelClass::GetPosition() const
+{
+	return m_position;
+}
+
+// Add methods for rotation
+void ModelClass::SetRotation(const DirectX::SimpleMath::Vector3& rotation)
+{
+	m_rotation = rotation;
+}
+
+DirectX::SimpleMath::Vector3 ModelClass::GetRotation() const
+{
+	return m_rotation;
+}
+
+// Method to get world matrix based on scale, rotation and position
+DirectX::SimpleMath::Matrix ModelClass::GetWorldMatrix() const
+{
+	// Create world matrix using scale, rotation and position
+	return DirectX::SimpleMath::Matrix::CreateScale(m_scale) * 
+		DirectX::SimpleMath::Matrix::CreateFromYawPitchRoll(
+		m_rotation.y * 3.14159f / 180.0f,  // Yaw
+		m_rotation.x * 3.14159f / 180.0f,  // Pitch
+		m_rotation.z * 3.14159f / 180.0f   // Roll
+	) * DirectX::SimpleMath::Matrix::CreateTranslation(m_position);
 }
