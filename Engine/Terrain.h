@@ -59,6 +59,7 @@ public:
 	const DirectX::SimpleMath::Vector4& GetVoronoiRegionColourVector(const Enums::COLOUR& colour) const;
 	const std::vector<VoronoiRegion>& GetVoronoiRegions() const { return m_voronoiRegions; }
 
+	float GetHeightAt(float x, float z) const;
 
 private:
 	bool CalculateNormals();

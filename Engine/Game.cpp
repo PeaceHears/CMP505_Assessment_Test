@@ -201,7 +201,7 @@ void Game::Update(DX::StepTimer const& timer)
 
     m_gameTimer.UpdateRemainingTime();
 
-    CheckDroneRegionProgress();
+    //CheckDroneRegionProgress();
 
     if (m_gameTimer.IsExpired())
     {
@@ -577,6 +577,33 @@ void Game::UpdateDroneMovement()
 
     // Set the updated position to the drone
     m_BasicModel2.SetPosition(dronePosition);
+
+    // --- Collision Detection ---
+    dronePosition = m_BasicModel2.GetPosition(); // Get the updated position
+
+    // Convert drone's world position to terrain's local coordinates (considering scaling)
+    float localX = dronePosition.x / 0.1f;
+    float localZ = dronePosition.z / 0.1f;
+
+    // Get terrain height at this position (local Y)
+    float terrainLocalY = m_Terrain.GetHeightAt(localX, localZ);
+
+    // Convert terrain's local Y to world Y (apply scaling and translation)
+    float terrainWorldY = (terrainLocalY * 0.1f) - 0.6f;
+
+    // Get the drone's effective radius
+    float droneRadius = m_BasicModel2.GetBoundingRadius();
+
+    // Drone's bottom point (center Y minus radius)
+    float droneBottom = dronePosition.y - droneRadius;
+
+    // Collision check
+    if (droneBottom < terrainWorldY)
+    {
+        // Push the drone up to sit on the terrain
+        dronePosition.y = terrainWorldY + droneRadius;
+        m_BasicModel2.SetPosition(dronePosition);
+    }
 }
 
 void Game::UpdateCameraMovement()

@@ -359,6 +359,29 @@ bool ModelClass::LoadModel(char* filename, bool isColoured)
 		vIndex++;
 	}
 
+	// Calculate bounding radius
+	float maxDistance = 0.0f;
+	if (isColoured)
+	{
+		for (const auto& vertex : preFabColouredVertices)
+		{
+			XMVECTOR pos = XMLoadFloat3(&vertex.position);
+			float distance = XMVectorGetX(XMVector3Length(pos));
+			maxDistance = std::max(maxDistance, distance);
+		}
+	}
+	else
+	{
+		for (const auto& vertex : preFabVertices)
+		{
+			XMVECTOR pos = XMLoadFloat3(&vertex.position);
+			float distance = XMVectorGetX(XMVector3Length(pos));
+			maxDistance = std::max(maxDistance, distance);
+		}
+	}
+
+	m_originalRadius = maxDistance;
+
 	m_indexCount = vIndex;
 
 	verts.clear();
@@ -438,4 +461,10 @@ void ModelClass::ChangeColour(ID3D11Device* device, const DirectX::SimpleMath::V
 	}
 
 	InitializeBuffers(device, true);
+}
+
+float ModelClass::GetBoundingRadius() const
+{
+	// Account for scaling (use the largest scale component)
+	return m_originalRadius * std::max({ m_scale.x, m_scale.y, m_scale.z });
 }

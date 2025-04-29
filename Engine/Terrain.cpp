@@ -882,3 +882,32 @@ const bool Terrain::IsPointInRegion(int x, int z, VoronoiRegion* region) const
 
 	return distance <= maxDistance;
 }
+
+float Terrain::GetHeightAt(float x, float z) const
+{
+	// Clamp x and z to terrain grid coordinates
+	x = Utils::clamp(x, 0.0f, static_cast<float>(m_terrainWidth - 1));
+	z = Utils::clamp(z, 0.0f, static_cast<float>(m_terrainHeight - 1));
+
+	int x0 = static_cast<int>(x);
+	int z0 = static_cast<int>(z);
+	float fracX = x - x0;
+	float fracZ = z - z0;
+
+	int x1 = std::min(x0 + 1, m_terrainWidth - 1);
+	int z1 = std::min(z0 + 1, m_terrainHeight - 1);
+
+	// Access height values using the same indexing as in Initialize()
+	float h00 = m_heightMap[z0 * m_terrainHeight + x0].y;
+	float h10 = m_heightMap[z0 * m_terrainHeight + x1].y;
+	float h01 = m_heightMap[z1 * m_terrainHeight + x0].y;
+	float h11 = m_heightMap[z1 * m_terrainHeight + x1].y;
+
+	// Bilinear interpolation
+	float h = (1 - fracX) * (1 - fracZ) * h00 +
+		fracX * (1 - fracZ) * h10 +
+		(1 - fracX) * fracZ * h01 +
+		fracX * fracZ * h11;
+
+	return h;
+}

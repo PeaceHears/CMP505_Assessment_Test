@@ -58,6 +58,8 @@ public:
 
 	void ChangeColour(ID3D11Device* device, const DirectX::SimpleMath::Vector4& colour);
 
+	float GetBoundingRadius() const;
+
 private:
 	bool InitializeBuffers(ID3D11Device*, const bool isColoured = false);
 	void ShutdownBuffers();
@@ -69,6 +71,7 @@ private:
 private:
 	ID3D11Buffer *m_vertexBuffer, *m_indexBuffer;
 	int m_vertexCount, m_indexCount;
+	float m_originalRadius = 0.0f;
 
 	//arrays for our generated objects Made by directX
 	std::vector<VertexPositionNormalTexture> preFabVertices;
@@ -78,7 +81,6 @@ private:
 	DirectX::SimpleMath::Vector3 m_scale = DirectX::SimpleMath::Vector3::Zero;
 	DirectX::SimpleMath::Vector3 m_position = DirectX::SimpleMath::Vector3::Zero;
 	DirectX::SimpleMath::Vector3 m_rotation = DirectX::SimpleMath::Vector3::Zero;
-
 };
 
 #endif
