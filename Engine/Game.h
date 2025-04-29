@@ -68,6 +68,7 @@ private:
     void UpdateCameraMovement();
     void UpdateDroneMovement();
     void SelectTargetRegion();
+    void DrawLevelIndicator();
 
     // Device resources.
     std::unique_ptr<DX::DeviceResources>    m_deviceResources;

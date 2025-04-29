@@ -263,6 +263,8 @@ void Game::Render()
     // Draw Game Timer to the screen 
 	m_gameTimer.Render(m_sprites, m_font);
 
+	DrawLevelIndicator();
+
 	//Set Rendering states. 
 	context->OMSetBlendState(m_states->Opaque(), nullptr, 0xFFFFFFFF);
 	context->OMSetDepthStencilState(m_states->DepthDefault(), 0);
@@ -578,6 +580,16 @@ void Game::UpdateCameraMovement()
 void Game::SelectTargetRegion()
 {
     m_targetRegionColour = m_Terrain.GetRandomVoronoiRegionColour();
+}
+
+void Game::DrawLevelIndicator()
+{
+    char buffer[16];
+    sprintf_s(buffer, "Level: %d", level);
+
+    m_sprites->Begin();
+    m_font->DrawString(m_sprites.get(), std::string(buffer).c_str(), XMFLOAT2(700, 10), Colors::Yellow);
+    m_sprites->End();
 }
 
 void Game::OnDeviceLost()
