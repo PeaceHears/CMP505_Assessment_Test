@@ -5,16 +5,6 @@
 
 using namespace DirectX;
 
-struct VoronoiRegion
-{
-	DirectX::SimpleMath::Vector2 seedPoint;
-	DirectX::SimpleMath::Vector4 colourVector;
-	Enums::COLOUR colour;
-	float minX, maxX;
-	float minZ, maxZ;
-	float heightOffset;
-};
-
 class Terrain
 {
 private:
@@ -34,7 +24,16 @@ private:
 		DirectX::SimpleMath::Vector4 colour;
 	};
 
-
+	struct VoronoiRegion
+	{
+		DirectX::SimpleMath::Vector2 seedPoint;
+		DirectX::SimpleMath::Vector4 colourVector;
+		DirectX::SimpleMath::Vector3 position;
+		Enums::COLOUR colour;
+		float minX, maxX;
+		float minZ, maxZ;
+		float heightOffset;
+	};
 
 public:
 	Terrain();
@@ -80,6 +79,8 @@ private:
 	float CalculateDistance(float x1, float y1, float x2, float y2) const;
 	const Enums::COLOUR& GetRandomColour() const;
 	void FillVoronoiRegionColours();
+	const DirectX::SimpleMath::Vector3& GetRegionPosition(VoronoiRegion* region) const;
+	const bool IsPointInRegion(int x, int z, VoronoiRegion* region) const;
 
 private:
 	bool m_terrainGeneratedToggle;

@@ -478,11 +478,19 @@ void Game::SetupGUI()
 	// Display the Voronoi regions
 	for (const auto& region : regions)
 	{
+        const auto& regionPosition = region.position;
+
 		ImGui::Text("Region Colour: %d", static_cast<int>(region.colour));
+
+        ImGui::Text("Region X: %.2f", regionPosition.x);
+        ImGui::Text("Region Y: %.2f", regionPosition.y);
+        ImGui::Text("Region Z: %.2f", regionPosition.z);
+
         ImGui::Text("Region Min X: %.2f", region.minX);
         ImGui::Text("Region Max X: %.2f", region.maxX);
         ImGui::Text("Region Min Z: %.2f", region.minZ);
         ImGui::Text("Region Max Z: %.2f", region.maxZ);
+
 		ImGui::Separator();
 	}
 
@@ -628,7 +636,7 @@ bool Game::IsTargetRegion(const Enums::COLOUR& colour) const
 
 void Game::CheckDroneRegionProgress()
 {
-    Vector3 dronePosition = m_BasicModel2.GetWorldPosition();
+    Vector3 dronePosition = m_BasicModel2.GetPosition();
     const auto currentRegionColour = m_Terrain.GetRegionColourAtPosition(dronePosition.x, dronePosition.z);
 
     if (IsTargetRegion(currentRegionColour))

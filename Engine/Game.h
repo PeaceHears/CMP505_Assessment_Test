@@ -154,7 +154,5 @@ private:
     Enums::COLOUR m_targetRegionColour;
     DirectX::SimpleMath::Vector4 m_targetRegionColourVector;
 
-    const std::vector<VoronoiRegion*> GetVoronoiRegions() const { m_Terrain.GetVoronoiRegions(); }
-
     int level = 1;
 };

@@ -722,6 +722,11 @@ bool Terrain::GenerateVoronoiRegions(ID3D11Device* device, int numRegions)
 		}
 	}
 
+	for (auto& region : m_voronoiRegions)
+	{
+		region.position = GetRegionPosition(&region);
+	}
+
 	result = CalculateNormalsAndInitializeBuffers(device);
 	return result;
 }
@@ -820,4 +825,60 @@ const Enums::COLOUR& Terrain::GetRegionColourAtPosition(float x, float z) const
 const DirectX::SimpleMath::Vector4& Terrain::GetVoronoiRegionColourVector(const Enums::COLOUR& colour) const
 {
 	return m_voronoiRegionColours.at(colour);
+}
+
+const DirectX::SimpleMath::Vector3& Terrain::GetRegionPosition(VoronoiRegion* region) const
+{
+	DirectX::SimpleMath::Vector3 regionPosition(0.0f, 0.0f, 0.0f);
+	int pointCount = 0;
+
+	// Iterate through terrain height map
+	for (int j = 0; j < m_terrainHeight; j++)
+	{
+		for (int i = 0; i < m_terrainWidth; i++)
+		{
+			int index = (m_terrainHeight * j) + i;
+
+			// Check if point belongs to this region
+			if (IsPointInRegion(i, j, region))
+			{
+				regionPosition.x += m_heightMap[index].x;
+				regionPosition.y += m_heightMap[index].y;
+				regionPosition.z += m_heightMap[index].z;
+				pointCount++;
+			}
+		}
+	}
+
+	// Calculate average if points found
+	if (pointCount > 0)
+	{
+		regionPosition.x /= pointCount;
+		regionPosition.y /= pointCount;
+		regionPosition.z /= pointCount;
+	}
+
+	return regionPosition;
+}
+
+const bool Terrain::IsPointInRegion(int x, int z, VoronoiRegion* region) const
+{
+	//const bool withinBounds = (x >= region->minX && x <= region->maxX &&
+	//							z >= region->minZ && z <= region->maxZ);
+	//return withinBounds;
+
+	float distance = CalculateDistance(
+		static_cast<float>(x),
+		static_cast<float>(z),
+		region->seedPoint.x,
+		region->seedPoint.y
+	);
+
+	// Use bounding box size as maximum distance
+	float maxDistance = std::max(
+		region->maxX - region->minX,
+		region->maxZ - region->minZ
+	) / 2.0f;
+
+	return distance <= maxDistance;
 }
