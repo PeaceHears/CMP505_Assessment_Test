@@ -12,7 +12,9 @@
 #include "Camera.h"
 #include "RenderTexture.h"
 #include "Terrain.h"
+
 #include "GameTimer.h"
+#include "Enums.h"
 
 // A basic game implementation that creates a D3D11 device and
 // provides a game loop.
@@ -69,6 +71,9 @@ private:
     void UpdateDroneMovement();
     void SelectTargetRegion();
     void DrawLevelIndicator();
+    bool IsTargetRegion(const Enums::COLOUR& colour) const;
+    void CheckDroneRegionProgress();
+    void HandleTargetRegionReached();
 
     // Device resources.
     std::unique_ptr<DX::DeviceResources>    m_deviceResources;
@@ -146,7 +151,10 @@ private:
     int m_lastMouseX = 0;
     int m_lastMouseY = 0;
 
-	DirectX::SimpleMath::Vector4 m_targetRegionColour;
+    Enums::COLOUR m_targetRegionColour;
+    DirectX::SimpleMath::Vector4 m_targetRegionColourVector;
+
+    const std::vector<VoronoiRegion*> GetVoronoiRegions() const { m_Terrain.GetVoronoiRegions(); }
 
     int level = 1;
 };

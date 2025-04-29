@@ -44,15 +44,17 @@ public:
 	int GetIndexCount();
 
 	void SetScale(const DirectX::SimpleMath::Vector3& scale);
-	DirectX::SimpleMath::Vector3 GetScale() const;
+	const DirectX::SimpleMath::Vector3& GetScale() const;
 
 	void SetPosition(const DirectX::SimpleMath::Vector3& position);
-	DirectX::SimpleMath::Vector3 GetPosition() const;
+	const DirectX::SimpleMath::Vector3& GetPosition() const;
 
 	void SetRotation(const DirectX::SimpleMath::Vector3& rotation);
-	DirectX::SimpleMath::Vector3 GetRotation() const;
+	const DirectX::SimpleMath::Vector3& GetRotation() const;
 
 	DirectX::SimpleMath::Matrix GetWorldMatrix() const;
+
+	const DirectX::SimpleMath::Vector3& GetWorldPosition() const;
 
 	void ChangeColour(ID3D11Device* device, const DirectX::SimpleMath::Vector4& colour);
 

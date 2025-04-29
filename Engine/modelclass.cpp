@@ -379,7 +379,7 @@ void ModelClass::SetScale(const DirectX::SimpleMath::Vector3& scale)
 	m_scale = scale;
 }
 
-DirectX::SimpleMath::Vector3 ModelClass::GetScale() const
+const DirectX::SimpleMath::Vector3& ModelClass::GetScale() const
 {
 	return m_scale;
 }
@@ -389,9 +389,19 @@ void ModelClass::SetPosition(const DirectX::SimpleMath::Vector3& position)
 	m_position = position;
 }
 
-DirectX::SimpleMath::Vector3 ModelClass::GetPosition() const
+const DirectX::SimpleMath::Vector3& ModelClass::GetPosition() const
 {
 	return m_position;
+}
+
+const DirectX::SimpleMath::Vector3& ModelClass::GetWorldPosition() const
+{
+	const auto localPosition = GetPosition();
+	const auto worldMatrix = GetWorldMatrix();
+	//const auto worldMatrix = DirectX::SimpleMath::Matrix::CreateTranslation(localPosition);
+	const auto worldPosition = DirectX::SimpleMath::Vector3::Transform(localPosition, worldMatrix);
+
+	return worldPosition;
 }
 
 // Add methods for rotation
@@ -400,7 +410,7 @@ void ModelClass::SetRotation(const DirectX::SimpleMath::Vector3& rotation)
 	m_rotation = rotation;
 }
 
-DirectX::SimpleMath::Vector3 ModelClass::GetRotation() const
+const DirectX::SimpleMath::Vector3& ModelClass::GetRotation() const
 {
 	return m_rotation;
 }

@@ -28,6 +28,8 @@ bool Terrain::Initialize(ID3D11Device* device, int terrainWidth, int terrainHeig
 	float height = 0.0;
 	bool result;
 
+	FillVoronoiRegionColours();
+
 	// Save the dimensions of the terrain.
 	m_terrainWidth = terrainWidth;
 	m_terrainHeight = terrainHeight;
@@ -78,7 +80,6 @@ bool Terrain::Initialize(ID3D11Device* device, int terrainWidth, int terrainHeig
 		return false;
 	}
 
-	
 	return true;
 }
 
@@ -97,7 +98,6 @@ bool Terrain::CalculateNormals()
 	float vertex1[3], vertex2[3], vertex3[3], vector1[3], vector2[3], sum[3], length;
 	DirectX::SimpleMath::Vector3* normals;
 	
-
 	// Create a temporary array to hold the un-normalized normal vectors.
 	normals = new DirectX::SimpleMath::Vector3[(m_terrainHeight - 1) * (m_terrainWidth - 1)];
 	if (!normals)
@@ -671,8 +671,17 @@ bool Terrain::GenerateVoronoiRegions(ID3D11Device* device, int numRegions)
 			static_cast<float>(disX(gen)),
 			static_cast<float>(disZ(gen))
 		);
-		region.color = GenerateRandomColor();
+		region.colour = GetRandomColour();
+		region.colourVector = m_voronoiRegionColours[region.colour];
+
+		const auto regionSize = 30.0f; // Adjust based on the terrain size
+		region.minX = std::max(0.0f, region.seedPoint.x - regionSize / 2);
+		region.maxX = std::min(static_cast<float>(m_terrainWidth - 1), region.seedPoint.x + regionSize / 2);
+		region.minZ = std::max(0.0f, region.seedPoint.y - regionSize / 2);
+		region.maxZ = std::min(static_cast<float>(m_terrainHeight - 1), region.seedPoint.y + regionSize / 2);
+		
 		region.heightOffset = disHeight(gen);
+
 		m_voronoiRegions.push_back(region);
 	}
 
@@ -705,7 +714,7 @@ bool Terrain::GenerateVoronoiRegions(ID3D11Device* device, int numRegions)
 			if (closestRegion)
 			{
 				// Color coding
-				m_heightMap[index].colour = closestRegion->color;
+				m_heightMap[index].colour = closestRegion->colourVector;
 
 				// Optional height modification
 				m_heightMap[index].y += closestRegion->heightOffset * 0.5f;
@@ -717,25 +726,54 @@ bool Terrain::GenerateVoronoiRegions(ID3D11Device* device, int numRegions)
 	return result;
 }
 
-float Terrain::CalculateDistance(float x1, float y1, float x2, float y2)
+float Terrain::CalculateDistance(float x1, float y1, float x2, float y2) const
 {
 	float dx = x1 - x2;
 	float dy = y1 - y2;
 	return std::sqrt(dx * dx + dy * dy);
 }
 
-DirectX::SimpleMath::Vector4 Terrain::GenerateRandomColor()
+void Terrain::FillVoronoiRegionColours()
 {
-	std::random_device rd;
-	std::mt19937 gen(rd());
-	std::uniform_real_distribution<> dis(0.0f, 1.0f);
+	m_voronoiRegionColours[Enums::COLOUR::Red] = DirectX::Colors::Red;
+	m_voronoiRegionColours[Enums::COLOUR::Blue] = DirectX::Colors::Blue;
+	m_voronoiRegionColours[Enums::COLOUR::Green] = DirectX::Colors::Green;
+	m_voronoiRegionColours[Enums::COLOUR::Goldenrod] = DirectX::Colors::Goldenrod;
+	m_voronoiRegionColours[Enums::COLOUR::Yellow] = DirectX::Colors::Yellow;
+	m_voronoiRegionColours[Enums::COLOUR::Orange] = DirectX::Colors::Orange;
+	m_voronoiRegionColours[Enums::COLOUR::Pink] = DirectX::Colors::Pink;
+	m_voronoiRegionColours[Enums::COLOUR::SlateGray] = DirectX::Colors::SlateGray;
+	m_voronoiRegionColours[Enums::COLOUR::Violet] = DirectX::Colors::Violet;
+	m_voronoiRegionColours[Enums::COLOUR::RosyBrown] = DirectX::Colors::RosyBrown;
+}
 
-	return DirectX::SimpleMath::Vector4(
-		dis(gen),  // Red
-		dis(gen),  // Green
-		dis(gen),  // Blue
-		1.0f       // Full opacity
-	);
+const Enums::COLOUR& Terrain::GetRandomColour() const
+{
+	//std::random_device rd;
+	//std::mt19937 gen(rd());
+	//std::uniform_real_distribution<> dis(0.0f, 1.0f);
+
+	//return DirectX::SimpleMath::Vector4(
+	//	dis(gen),  // Red
+	//	dis(gen),  // Green
+	//	dis(gen),  // Blue
+	//	1.0f       // Full opacity
+	//);
+
+	const auto voronoiRegionColourCount = m_voronoiRegionColours.size();
+	const auto randomIndex = Utils::GetRandomInt(0, voronoiRegionColourCount - 1);
+	Enums::COLOUR randomColour;
+
+	for (size_t i = 0; i < voronoiRegionColourCount; i++)
+	{
+		if (i == randomIndex)
+		{
+			randomColour = static_cast<Enums::COLOUR>(i);
+			break;
+		}
+	}
+
+	return randomColour;
 }
 
 bool Terrain::Update()
@@ -753,11 +791,33 @@ float* Terrain::GetAmplitude()
 	return &m_amplitude;
 }
 
-const DirectX::SimpleMath::Vector4& Terrain::GetRandomVoronoiRegionColour() const
+const Enums::COLOUR& Terrain::GetRandomVoronoiRegionColour() const
 {
 	const auto voronoiRegionsCount = m_voronoiRegions.size();
 	const auto randomIndex = Utils::GetRandomInt(0, voronoiRegionsCount - 1);
 	const auto randomRegion = m_voronoiRegions[randomIndex];
 
-	return randomRegion.color;
+	return randomRegion.colour;
+}
+
+const Enums::COLOUR& Terrain::GetRegionColourAtPosition(float x, float z) const
+{
+	Enums::COLOUR colour;
+
+	for (const auto& region : m_voronoiRegions)
+	{
+		if (x >= region.minX && x <= region.maxX &&
+			z >= region.minZ && z <= region.maxZ)
+		{
+			colour = region.colour;
+			break;
+		}
+	}
+
+	return colour;
+}
+
+const DirectX::SimpleMath::Vector4& Terrain::GetVoronoiRegionColourVector(const Enums::COLOUR& colour) const
+{
+	return m_voronoiRegionColours.at(colour);
 }

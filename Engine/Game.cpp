@@ -9,6 +9,7 @@
 //toreorganise
 #include <fstream>
 
+
 extern void ExitGame();
 
 using namespace DirectX;
@@ -89,7 +90,7 @@ void Game::Initialize(HWND window, int width, int height)
     m_Terrain.GenerateVoronoiRegions(m_deviceResources->GetD3DDevice(), 5);
 
 	SelectTargetRegion();
-    m_BasicModel2.ChangeColour(m_deviceResources->GetD3DDevice(), m_targetRegionColour);
+    m_BasicModel2.ChangeColour(m_deviceResources->GetD3DDevice(), m_targetRegionColourVector);
 
 	m_gameTimer.SetStartTime(m_timer, 10.0f);
     m_gameTimer.Start();
@@ -199,6 +200,8 @@ void Game::Update(DX::StepTimer const& timer)
 	SetupGUI();
 
     m_gameTimer.UpdateRemainingTime();
+
+    CheckDroneRegionProgress();
 
     if (m_gameTimer.IsExpired())
     {
@@ -448,6 +451,41 @@ void Game::SetupGUI()
 
 	ImGui::Begin("Procedural Terrain Generation");
 
+    const auto& cameraPosition = m_Camera01.getPosition();
+    ImGui::Text("Camera X Position: %.2f", cameraPosition.x);
+    ImGui::Text("Camera Y Position: %.2f", cameraPosition.y);
+    ImGui::Text("Camera Z Position: %.2f", cameraPosition.z);
+
+    ImGui::Separator();
+
+	const auto& dronePosition = m_BasicModel2.GetPosition();
+    ImGui::Text("Drone X Position: %.2f", dronePosition.x);
+    ImGui::Text("Drone Y Position: %.2f", dronePosition.y);
+    ImGui::Text("Drone Z Position: %.2f", dronePosition.z);
+
+    ImGui::Separator();
+
+    const auto& droneWorldPosition = m_BasicModel2.GetWorldPosition();
+    ImGui::Text("Drone World X Position: %.2f", droneWorldPosition.x);
+    ImGui::Text("Drone World Y Position: %.2f", droneWorldPosition.y);
+    ImGui::Text("Drone World Z Position: %.2f", droneWorldPosition.z);
+
+    ImGui::Separator();
+
+	const auto& regions = m_Terrain.GetVoronoiRegions();
+	ImGui::Text("Voronoi Regions: %d", regions.size());
+
+	// Display the Voronoi regions
+	for (const auto& region : regions)
+	{
+		ImGui::Text("Region Colour: %d", static_cast<int>(region.colour));
+        ImGui::Text("Region Min X: %.2f", region.minX);
+        ImGui::Text("Region Max X: %.2f", region.maxX);
+        ImGui::Text("Region Min Z: %.2f", region.minZ);
+        ImGui::Text("Region Max Z: %.2f", region.maxZ);
+		ImGui::Separator();
+	}
+
 	ImGui::Text("Sin Wave Parameters");
 	ImGui::SliderFloat("Wave Amplitude",	m_Terrain.GetAmplitude(), 0.0f, 10.0f);
 	ImGui::SliderFloat("Wavelength",		m_Terrain.GetWavelength(), 0.0f, 1.0f);
@@ -502,7 +540,7 @@ void Game::HandleTimerExpiration()
 
     SelectTargetRegion();
 
-	m_BasicModel2.ChangeColour(m_deviceResources->GetD3DDevice(), m_targetRegionColour);
+	m_BasicModel2.ChangeColour(m_deviceResources->GetD3DDevice(), m_targetRegionColourVector);
 
     m_gameTimer.Restart();
 
@@ -580,6 +618,28 @@ void Game::UpdateCameraMovement()
 void Game::SelectTargetRegion()
 {
     m_targetRegionColour = m_Terrain.GetRandomVoronoiRegionColour();
+	m_targetRegionColourVector = m_Terrain.GetVoronoiRegionColourVector(m_targetRegionColour);
+}
+
+bool Game::IsTargetRegion(const Enums::COLOUR& colour) const
+{
+    return colour == m_targetRegionColour;
+}
+
+void Game::CheckDroneRegionProgress()
+{
+    Vector3 dronePosition = m_BasicModel2.GetWorldPosition();
+    const auto currentRegionColour = m_Terrain.GetRegionColourAtPosition(dronePosition.x, dronePosition.z);
+
+    if (IsTargetRegion(currentRegionColour))
+    {
+        HandleTargetRegionReached();
+    }
+}
+
+void Game::HandleTargetRegionReached()
+{
+    
 }
 
 void Game::DrawLevelIndicator()

@@ -1,6 +1,19 @@
 #pragma once
 
+#include "Enums.h"
+#include <map>
+
 using namespace DirectX;
+
+struct VoronoiRegion
+{
+	DirectX::SimpleMath::Vector2 seedPoint;
+	DirectX::SimpleMath::Vector4 colourVector;
+	Enums::COLOUR colour;
+	float minX, maxX;
+	float minZ, maxZ;
+	float heightOffset;
+};
 
 class Terrain
 {
@@ -21,12 +34,7 @@ private:
 		DirectX::SimpleMath::Vector4 colour;
 	};
 
-	struct VoronoiRegion
-	{
-		DirectX::SimpleMath::Vector2 seedPoint;
-		DirectX::SimpleMath::Vector4 color;
-		float heightOffset;
-	};
+
 
 public:
 	Terrain();
@@ -47,7 +55,11 @@ public:
 	bool GeneratePerlinNoiseTerrain(ID3D11Device* device, float scale = 1.0f, int octaves = 4);
 	bool GenerateVoronoiRegions(ID3D11Device* device, int numRegions);
 
-	const DirectX::SimpleMath::Vector4& GetRandomVoronoiRegionColour() const;
+	const Enums::COLOUR& GetRandomVoronoiRegionColour() const;
+	const Enums::COLOUR& GetRegionColourAtPosition(float x, float z) const;
+	const DirectX::SimpleMath::Vector4& GetVoronoiRegionColourVector(const Enums::COLOUR& colour) const;
+	const std::vector<VoronoiRegion>& GetVoronoiRegions() const { return m_voronoiRegions; }
+
 
 private:
 	bool CalculateNormals();
@@ -65,8 +77,9 @@ private:
 	void GeneratePermutationTable();
 
 	DirectX::SimpleMath::Vector4 GetColorByHeight(float height);
-	float CalculateDistance(float x1, float y1, float x2, float y2);
-	DirectX::SimpleMath::Vector4 GenerateRandomColor();
+	float CalculateDistance(float x1, float y1, float x2, float y2) const;
+	const Enums::COLOUR& GetRandomColour() const;
+	void FillVoronoiRegionColours();
 
 private:
 	bool m_terrainGeneratedToggle;
@@ -87,5 +100,6 @@ private:
 	std::vector<int> m_permutation;
 
 	std::vector<VoronoiRegion> m_voronoiRegions;
+	std::map<Enums::COLOUR, DirectX::SimpleMath::Vector4> m_voronoiRegionColours;
 };
 
