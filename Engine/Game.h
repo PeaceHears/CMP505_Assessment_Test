@@ -155,4 +155,9 @@ private:
     DirectX::SimpleMath::Vector4 m_targetRegionColourVector;
 
     int level = 1;
+
+	float m_terrainScale = 0.1f;
+    DirectX::SimpleMath::Vector3 m_terrainTranslation = DirectX::SimpleMath::Vector3(0.0f, -0.6f, 0.0f);
+
+	float m_previousDroneY = 0.0f;
 };

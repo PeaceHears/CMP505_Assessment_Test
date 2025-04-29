@@ -60,6 +60,8 @@ public:
 	const std::vector<VoronoiRegion>& GetVoronoiRegions() const { return m_voronoiRegions; }
 
 	float GetHeightAt(float x, float z) const;
+	int GetWidth() const { return m_terrainWidth; }
+	int GetHeight() const { return m_terrainHeight; }
 
 private:
 	bool CalculateNormals();

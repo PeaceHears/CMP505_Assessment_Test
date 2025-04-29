@@ -5,10 +5,10 @@
 #include "pch.h"
 #include "Game.h"
 
-
 //toreorganise
 #include <fstream>
 
+#include "Utils.h"
 
 extern void ExitGame();
 
@@ -276,8 +276,8 @@ void Game::Render()
 
 	//prepare transform for floor object. 
 	m_world = SimpleMath::Matrix::Identity; //set world back to identity
-	SimpleMath::Matrix newPosition3 = SimpleMath::Matrix::CreateTranslation(0.0f, -0.6f, 0.0f);
-	SimpleMath::Matrix newScale = SimpleMath::Matrix::CreateScale(0.1f);		//scale the terrain down a little. 
+	SimpleMath::Matrix newPosition3 = SimpleMath::Matrix::CreateTranslation(m_terrainTranslation);
+	SimpleMath::Matrix newScale = SimpleMath::Matrix::CreateScale(0.1f);
 	m_world = m_world * newScale * newPosition3;
 
 	m_BasicShaderPair.EnableShader(context);
@@ -558,7 +558,7 @@ void Game::HandleTimerExpiration()
 void Game::SetupDrone()
 {
     // Set the fixed position where the drone should appear
-    Vector3 dronePosition = m_Camera01.getPosition() + Vector3(0, 5.0f, -10.0f); // Adjust height and distance
+    Vector3 dronePosition = m_Camera01.getPosition() + Vector3(0, -5.0f, -10.0f); // Adjust height and distance
 	m_BasicModel2.SetScale(Vector3(0.1f, 0.1f, 0.1f)); // Set the scale of the drone model
     m_BasicModel2.SetRotation(Vector3(0.0f, 0.0f, 0.0f)); // Set the desired rotation for static effect
     m_BasicModel2.SetPosition(dronePosition); // Set the drone position
@@ -581,29 +581,91 @@ void Game::UpdateDroneMovement()
     // --- Collision Detection ---
     dronePosition = m_BasicModel2.GetPosition(); // Get the updated position
 
+    // --- Collision Detection ---
+    // 
+    // 
+	// ****** To restrict drone movement to terrain bounds ******
+    // 
+    //float terrainWorldWidth = (m_Terrain.GetWidth() * 0.1f);  // Scaled by 0.1f
+    //float terrainWorldHeight = (m_Terrain.GetHeight() * 0.1f);  // Scaled by 0.1f
+    //float terrainWorldMinX = 0.0f;                           // Assuming terrain starts at X=0
+    //float terrainWorldMinZ = 0.0f;                           // Assuming terrain starts at Z=0
+    //float terrainWorldMaxX = terrainWorldWidth;              // Max X in world space
+    //float terrainWorldMaxZ = terrainWorldHeight;             // Max Z in world space
+    // 
+    //// 1. Clamp X/Z to terrain bounds
+    //dronePosition.x = Utils::clamp(dronePosition.x, terrainWorldMinX, terrainWorldMaxX);
+    //dronePosition.z = Utils::clamp(dronePosition.z, terrainWorldMinZ, terrainWorldMaxZ);
+
+    //// 2. Terrain height check (Y-axis)
     // Convert drone's world position to terrain's local coordinates (considering scaling)
-    float localX = dronePosition.x / 0.1f;
-    float localZ = dronePosition.z / 0.1f;
+    //float localX = dronePosition.x / m_droneScale;  // Convert to terrain-local space
+    //float localZ = dronePosition.z / m_droneScale;
 
-    // Get terrain height at this position (local Y)
-    float terrainLocalY = m_Terrain.GetHeightAt(localX, localZ);
+    ////TODO: Try colour check with these local values
 
-    // Convert terrain's local Y to world Y (apply scaling and translation)
-    float terrainWorldY = (terrainLocalY * 0.1f) - 0.6f;
+    //float terrainLocalY = m_Terrain.GetHeightAt(localX, localZ);
+    //float terrainWorldY = (terrainLocalY * 0.1f) - 0.6f;  // Apply scaling/translation
 
-    // Get the drone's effective radius
-    float droneRadius = m_BasicModel2.GetBoundingRadius();
+    //// 3. Push drone up if below terrain
+    //float droneRadius = m_BasicModel2.GetBoundingRadius();
+    //float droneBottom = dronePosition.y - droneRadius;
 
-    // Drone's bottom point (center Y minus radius)
-    float droneBottom = dronePosition.y - droneRadius;
+    //if (droneBottom < terrainWorldY)
+    //{
+    //    dronePosition.y = terrainWorldY + droneRadius;
+    //}
 
-    // Collision check
-    if (droneBottom < terrainWorldY)
-    {
-        // Push the drone up to sit on the terrain
-        dronePosition.y = terrainWorldY + droneRadius;
-        m_BasicModel2.SetPosition(dronePosition);
+    //m_BasicModel2.SetPosition(dronePosition);
+
+	// ****** To restrict drone movement to terrain bounds ******
+
+
+    // ****** To collide drone with only terrain ******
+
+    // TODO: Implement "from down of terrain to up" logic
+    // 
+    // Convert to terrain-local coordinates (reverse scaling and translation)
+    float localX = (dronePosition.x - m_terrainTranslation.x) / m_terrainScale;
+    float localZ = (dronePosition.z - m_terrainTranslation.z) / m_terrainScale;
+
+    // Check if drone is over the terrain
+    bool isOverTerrain = (localX >= 0 && localX < m_Terrain.GetWidth() &&
+        localZ >= 0 && localZ < m_Terrain.GetHeight());
+
+    if (isOverTerrain) {
+        // Get terrain height in world space
+        float terrainLocalY = m_Terrain.GetHeightAt(localX, localZ);
+        float terrainWorldY = (terrainLocalY * m_terrainScale) + m_terrainTranslation.y;
+
+        // Drone collision parameters
+        float droneRadius = m_BasicModel2.GetBoundingRadius();
+        float droneTop = dronePosition.y + droneRadius;
+        float droneBottom = dronePosition.y - droneRadius;
+        bool isMovingUp = dronePosition.y > m_previousDroneY; // Check movement direction
+
+        // Check penetration from above or below
+        bool isPenetratingFromAbove = (droneBottom < terrainWorldY);
+        bool isPenetratingFromBelow = (droneTop > terrainWorldY);
+
+        // Resolve collision based on movement direction
+        if (isPenetratingFromAbove || isPenetratingFromBelow) {
+            if (isPenetratingFromAbove) {
+                // From above: Push up to terrain surface
+                dronePosition.y = terrainWorldY + droneRadius;
+            }
+            else if (isPenetratingFromBelow && isMovingUp) {
+                // From below and moving up: Push down below terrain
+                dronePosition.y = terrainWorldY - droneRadius;
+            }
+            m_BasicModel2.SetPosition(dronePosition);
+        }
     }
+
+    // Update previous Y for next frame
+    m_previousDroneY = dronePosition.y;
+
+    // ****** To collide drone with only terrain ******
 }
 
 void Game::UpdateCameraMovement()
