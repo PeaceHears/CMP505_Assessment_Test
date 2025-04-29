@@ -62,10 +62,12 @@ private:
     void CreateDeviceDependentResources();
     void CreateWindowSizeDependentResources();
 	void SetupGUI();
+
     void HandleTimerExpiration();
     void SetupDrone();
     void UpdateCameraMovement();
     void UpdateDroneMovement();
+    void SelectTargetRegion();
 
     // Device resources.
     std::unique_ptr<DX::DeviceResources>    m_deviceResources;
@@ -142,4 +144,8 @@ private:
 
     int m_lastMouseX = 0;
     int m_lastMouseY = 0;
+
+	DirectX::SimpleMath::Vector4 m_targetRegionColour;
+
+    int level = 1;
 };

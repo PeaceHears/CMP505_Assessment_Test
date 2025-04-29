@@ -88,7 +88,8 @@ void Game::Initialize(HWND window, int width, int height)
 	m_Terrain.GeneratePerlinNoiseTerrain(m_deviceResources->GetD3DDevice(), 10.0f, 5);
     m_Terrain.GenerateVoronoiRegions(m_deviceResources->GetD3DDevice(), 5);
 
-    m_BasicModel2.ChangeColour(m_deviceResources->GetD3DDevice(), m_Terrain.GetRandomVoronoiRegionColour());
+	SelectTargetRegion();
+    m_BasicModel2.ChangeColour(m_deviceResources->GetD3DDevice(), m_targetRegionColour);
 
 	m_gameTimer.SetStartTime(m_timer, 10.0f);
     m_gameTimer.Start();
@@ -396,7 +397,7 @@ void Game::CreateDeviceDependentResources()
 
 	//setup our terrain
 	m_Terrain.Initialize(device, 128, 128);
-
+    
 	//setup our test model
 	m_BasicModel.InitializeSphere(device);
 	m_BasicModel2.InitializeModel(device,"drone.obj", true);
@@ -494,12 +495,16 @@ void Game::SetupGUI()
 
 void Game::HandleTimerExpiration()
 {
-    const auto randomVoronoiRegionColour = m_Terrain.GetRandomVoronoiRegionColour();
-
     m_Terrain.GeneratePerlinNoiseTerrain(m_deviceResources->GetD3DDevice(), 10.0f, 5);
 	m_Terrain.GenerateVoronoiRegions(m_deviceResources->GetD3DDevice(), 5);
-	m_BasicModel2.ChangeColour(m_deviceResources->GetD3DDevice(), randomVoronoiRegionColour);
+
+    SelectTargetRegion();
+
+	m_BasicModel2.ChangeColour(m_deviceResources->GetD3DDevice(), m_targetRegionColour);
+
     m_gameTimer.Restart();
+
+    level++;
 }
 
 void Game::SetupDrone()
@@ -568,6 +573,11 @@ void Game::UpdateCameraMovement()
     Vector3 cameraPosition = m_Camera01.getPosition();
     cameraPosition += cameraMovement;
     m_Camera01.setPosition(cameraPosition);
+}
+
+void Game::SelectTargetRegion()
+{
+    m_targetRegionColour = m_Terrain.GetRandomVoronoiRegionColour();
 }
 
 void Game::OnDeviceLost()
