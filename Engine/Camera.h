@@ -18,6 +18,7 @@ public:
 	DirectX::SimpleMath::Vector3 GetForwardVector() const;
 	DirectX::SimpleMath::Vector3 GetRightVector() const;
 	DirectX::SimpleMath::Vector3 GetUpVector() const;
+	void SetLookAt(const DirectX::SimpleMath::Vector3& position);
 
 private:
 	DirectX::SimpleMath::Matrix		m_cameraMatrix;			//camera matrix to be passed out and used to set camera position and angle for wrestling

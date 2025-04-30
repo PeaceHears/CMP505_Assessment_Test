@@ -178,11 +178,13 @@ void Game::Update(DX::StepTimer const& timer)
     // Horizontal rotation (Yaw) - left/right mouse movement
     rotation.y -= mouseDeltaX * sensitivity;
 
-    // Vertical rotation (Pitch) - up/down mouse movement
-    rotation.x -= mouseDeltaY * sensitivity;
+    //// Vertical rotation (Pitch) - up/down mouse movement
+    //rotation.x -= mouseDeltaY * sensitivity;
 
-    // Clamp vertical rotation to prevent flipping
-    rotation.x = std::max(-89.0f, std::min(rotation.x, 89.0f));
+    //// Clamp vertical rotation to prevent flipping
+    //rotation.x = std::max(-89.0f, std::min(rotation.x, 89.0f));
+
+	rotation.x = -50.0f; // Set fixed pitch angle
 
     // Set the new rotation for the camera
     m_Camera01.setRotation(rotation);
@@ -570,7 +572,7 @@ void Game::UpdateDroneMovement()
     Vector3 cameraPosition = m_Camera01.getPosition();
 
     // Define fixed offset (2 units in front of the camera and slightly above)
-    Vector3 droneOffset = m_Camera01.GetForwardVector() * 1.0f + m_Camera01.GetUpVector() * 0.1f;
+    Vector3 droneOffset = m_Camera01.GetForwardVector() * 1.0f + m_Camera01.GetUpVector() * -0.5f;
 
     // Update drone position to camera position plus the offset
     Vector3 dronePosition = cameraPosition + droneOffset;
@@ -626,38 +628,43 @@ void Game::UpdateDroneMovement()
     // TODO: Implement "from down of terrain to up" logic
     // 
     // Convert to terrain-local coordinates (reverse scaling and translation)
-    float localX = (dronePosition.x - m_terrainTranslation.x) / m_terrainScale;
-    float localZ = (dronePosition.z - m_terrainTranslation.z) / m_terrainScale;
+    const float localX = (dronePosition.x - m_terrainTranslation.x) / m_terrainScale;
+    const float localZ = (dronePosition.z - m_terrainTranslation.z) / m_terrainScale;
 
     // Check if drone is over the terrain
-    bool isOverTerrain = (localX >= 0 && localX < m_Terrain.GetWidth() &&
-        localZ >= 0 && localZ < m_Terrain.GetHeight());
+    const bool isOverTerrain = (localX >= 0 && localX < m_Terrain.GetWidth() &&
+                                localZ >= 0 && localZ < m_Terrain.GetHeight());
 
-    if (isOverTerrain) {
+    if (isOverTerrain)
+    {
         // Get terrain height in world space
-        float terrainLocalY = m_Terrain.GetHeightAt(localX, localZ);
-        float terrainWorldY = (terrainLocalY * m_terrainScale) + m_terrainTranslation.y;
+        const float terrainLocalY = m_Terrain.GetHeightAt(localX, localZ);
+        const float terrainWorldY = (terrainLocalY * m_terrainScale) + m_terrainTranslation.y;
 
         // Drone collision parameters
-        float droneRadius = m_BasicModel2.GetBoundingRadius();
-        float droneTop = dronePosition.y + droneRadius;
-        float droneBottom = dronePosition.y - droneRadius;
-        bool isMovingUp = dronePosition.y > m_previousDroneY; // Check movement direction
+        const float droneRadius = m_BasicModel2.GetBoundingRadius();
+        //const float droneTop = dronePosition.y + droneRadius;
+        const float droneBottom = dronePosition.y - droneRadius;
+        //const bool isMovingUp = dronePosition.y > m_previousDroneY; // Check movement direction
 
         // Check penetration from above or below
-        bool isPenetratingFromAbove = (droneBottom < terrainWorldY);
-        bool isPenetratingFromBelow = (droneTop > terrainWorldY);
+        const bool isPenetratingFromAbove = (droneBottom < terrainWorldY);
+        //bool isPenetratingFromBelow = (droneTop > terrainWorldY);
 
         // Resolve collision based on movement direction
-        if (isPenetratingFromAbove || isPenetratingFromBelow) {
-            if (isPenetratingFromAbove) {
+        if (isPenetratingFromAbove /* || isPenetratingFromBelow*/)
+        {
+            if (isPenetratingFromAbove)
+            {
                 // From above: Push up to terrain surface
                 dronePosition.y = terrainWorldY + droneRadius;
             }
-            else if (isPenetratingFromBelow && isMovingUp) {
-                // From below and moving up: Push down below terrain
-                dronePosition.y = terrainWorldY - droneRadius;
-            }
+            //else if (isPenetratingFromBelow && isMovingUp)
+            //{
+            //    // From below and moving up: Push down below terrain
+            //    dronePosition.y = terrainWorldY - droneRadius;
+            //}
+
             m_BasicModel2.SetPosition(dronePosition);
         }
     }

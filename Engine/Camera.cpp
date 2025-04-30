@@ -45,21 +45,25 @@ Camera::~Camera()
 
 void Camera::Update()
 {
-	//rotation in yaw - using the paramateric equation of a circle
-	m_forward.x = sin((m_orientation.y)*3.1415f / 180.0f);
-	m_forward.z = cos((m_orientation.y)*3.1415f / 180.0f);
+	// Convert orientation to radians
+	const float pitch = DirectX::XMConvertToRadians(m_orientation.x);
+	const float yaw = DirectX::XMConvertToRadians(m_orientation.y);
+
+	// Calculate forward vector using pitch and yaw
+	m_forward.x = sin(yaw) * cos(pitch);
+	m_forward.y = sin(pitch);
+	m_forward.z = cos(yaw) * cos(pitch);
 	m_forward.Normalize();
 
-	//create right vector from look Direction
+	// Calculate right vector
 	m_forward.Cross(DirectX::SimpleMath::Vector3::UnitY, m_right);
+	m_right.Normalize();
 
-	//update lookat point
+	// Update lookat point
 	m_lookat = m_position + m_forward;
 
-	//apply camera vectors and create camera matrix
-	m_cameraMatrix = (DirectX::SimpleMath::Matrix::CreateLookAt(m_position, m_lookat, DirectX::SimpleMath::Vector3::UnitY));
-
-
+	// Update camera matrix
+	m_cameraMatrix = DirectX::SimpleMath::Matrix::CreateLookAt(m_position, m_lookat, DirectX::SimpleMath::Vector3::UnitY);
 }
 
 DirectX::SimpleMath::Matrix Camera::getCameraMatrix()
@@ -132,4 +136,9 @@ DirectX::SimpleMath::Vector3 Camera::GetRightVector() const
 DirectX::SimpleMath::Vector3 Camera::GetUpVector() const
 {
 	return DirectX::SimpleMath::Vector3::UnitY;
+}
+
+void Camera::SetLookAt(const DirectX::SimpleMath::Vector3& position)
+{
+	m_lookat = position;
 }
