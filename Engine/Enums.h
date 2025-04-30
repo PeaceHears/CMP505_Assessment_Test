@@ -4,6 +4,7 @@ namespace Enums
 {
 	enum class COLOUR
 	{
+		White,
 		Red,
 		Blue,
 		Green,

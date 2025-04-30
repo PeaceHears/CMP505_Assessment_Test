@@ -90,9 +90,9 @@ void Game::Initialize(HWND window, int width, int height)
     m_Terrain.GenerateVoronoiRegions(m_deviceResources->GetD3DDevice(), 5);
 
 	SelectTargetRegion();
-    m_BasicModel2.ChangeColour(m_deviceResources->GetD3DDevice(), m_targetRegionColourVector);
+    m_BasicModel2.ChangeColour(m_deviceResources->GetD3DDevice(), m_targetRegionColour, m_targetRegionColourVector);
 
-	m_gameTimer.SetStartTime(m_timer, 10.0f);
+	m_gameTimer.SetStartTime(m_timer, 300.0f);
     m_gameTimer.Start();
 
     SetupDrone();
@@ -202,8 +202,6 @@ void Game::Update(DX::StepTimer const& timer)
 	SetupGUI();
 
     m_gameTimer.UpdateRemainingTime();
-
-    //CheckDroneRegionProgress();
 
     if (m_gameTimer.IsExpired())
     {
@@ -550,7 +548,7 @@ void Game::HandleTimerExpiration()
 
     SelectTargetRegion();
 
-	m_BasicModel2.ChangeColour(m_deviceResources->GetD3DDevice(), m_targetRegionColourVector);
+	m_BasicModel2.ChangeColour(m_deviceResources->GetD3DDevice(), m_targetRegionColour, m_targetRegionColourVector);
 
     m_gameTimer.Restart();
 
@@ -673,6 +671,11 @@ void Game::UpdateDroneMovement()
     // Update previous Y for next frame
     m_previousDroneY = dronePosition.y;
 
+    //if (m_BasicModel2.IsColliding())
+    //{
+		//CheckDroneRegionProgress(localX, localZ);
+    //}
+
     // ****** To collide drone with only terrain ******
 }
 
@@ -732,10 +735,9 @@ bool Game::IsTargetRegion(const Enums::COLOUR& colour) const
     return colour == m_targetRegionColour;
 }
 
-void Game::CheckDroneRegionProgress()
+void Game::CheckDroneRegionProgress(const float localX, const float localZ)
 {
-    Vector3 dronePosition = m_BasicModel2.GetPosition();
-    const auto currentRegionColour = m_Terrain.GetRegionColourAtPosition(dronePosition.x, dronePosition.z);
+    const auto currentRegionColour = m_Terrain.GetRegionColourAtPosition(localX, localZ);
 
     if (IsTargetRegion(currentRegionColour))
     {
@@ -745,7 +747,7 @@ void Game::CheckDroneRegionProgress()
 
 void Game::HandleTargetRegionReached()
 {
-    
+
 }
 
 void Game::DrawLevelIndicator()

@@ -734,6 +734,7 @@ float Terrain::CalculateDistance(float x1, float y1, float x2, float y2) const
 
 void Terrain::FillVoronoiRegionColours()
 {
+	m_voronoiRegionColours[Enums::COLOUR::White] = DirectX::Colors::White;
 	m_voronoiRegionColours[Enums::COLOUR::Red] = DirectX::Colors::Red;
 	m_voronoiRegionColours[Enums::COLOUR::Blue] = DirectX::Colors::Blue;
 	m_voronoiRegionColours[Enums::COLOUR::Green] = DirectX::Colors::Green;
@@ -801,19 +802,23 @@ const Enums::COLOUR& Terrain::GetRandomVoronoiRegionColour() const
 
 const Enums::COLOUR& Terrain::GetRegionColourAtPosition(float x, float z) const
 {
-	Enums::COLOUR colour;
+	const float EPSILON = 0.001f; // Tolerance for floating-point precision
 
 	for (const auto& region : m_voronoiRegions)
 	{
-		if (x >= region.minX && x <= region.maxX &&
-			z >= region.minZ && z <= region.maxZ)
+		// Check if (x,z) is within the region's bounds (with tolerance)
+		bool withinX = (x >= region.minX - EPSILON) && (x <= region.maxX + EPSILON);
+		bool withinZ = (z >= region.minZ - EPSILON) && (z <= region.maxZ + EPSILON);
+
+		if (withinX && withinZ)
 		{
-			colour = region.colour;
-			break;
+			return region.colour;
 		}
 	}
 
-	return colour;
+	// Fallback: Return default colour if no region found
+	static Enums::COLOUR defaultColour = Enums::COLOUR::White;
+	return defaultColour;
 }
 
 const DirectX::SimpleMath::Vector4& Terrain::GetVoronoiRegionColourVector(const Enums::COLOUR& colour) const

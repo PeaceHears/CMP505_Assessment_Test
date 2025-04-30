@@ -72,7 +72,7 @@ private:
     void SelectTargetRegion();
     void DrawLevelIndicator();
     bool IsTargetRegion(const Enums::COLOUR& colour) const;
-    void CheckDroneRegionProgress();
+    void CheckDroneRegionProgress(const float localX, const float localZ);
     void HandleTargetRegionReached();
 
     // Device resources.

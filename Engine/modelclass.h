@@ -13,6 +13,8 @@
 //#include <fstream>
 //using namespace std;
 
+#include "Enums.h"
+
 ////////////////////////////////////////////////////////////////////////////////
 // Class name: ModelClass
 ////////////////////////////////////////////////////////////////////////////////
@@ -56,7 +58,8 @@ public:
 
 	const DirectX::SimpleMath::Vector3& GetWorldPosition() const;
 
-	void ChangeColour(ID3D11Device* device, const DirectX::SimpleMath::Vector4& colour);
+	void ChangeColour(ID3D11Device* device, const Enums::COLOUR& colour, const DirectX::SimpleMath::Vector4& colourVector);
+	const Enums::COLOUR& GetColour() const { return m_colour; }
 
 	float GetBoundingRadius() const;
 
@@ -86,6 +89,8 @@ private:
 	DirectX::SimpleMath::Vector3 m_rotation = DirectX::SimpleMath::Vector3::Zero;
 
 	bool isColliding = false;
+
+	Enums::COLOUR m_colour;
 };
 
 #endif

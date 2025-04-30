@@ -450,15 +450,17 @@ DirectX::SimpleMath::Matrix ModelClass::GetWorldMatrix() const
 	) * DirectX::SimpleMath::Matrix::CreateTranslation(m_position);
 }
 
-void ModelClass::ChangeColour(ID3D11Device* device, const DirectX::SimpleMath::Vector4& colour)
+void ModelClass::ChangeColour(ID3D11Device* device, const Enums::COLOUR& colour, const DirectX::SimpleMath::Vector4& colourVector)
 {
 	for (int i = 0; i < m_vertexCount; i++)
 	{
-		preFabColouredVertices[i].color.x = colour.x;
-		preFabColouredVertices[i].color.y = colour.y;
-		preFabColouredVertices[i].color.z = colour.z;
-		preFabColouredVertices[i].color.w = colour.w;
+		preFabColouredVertices[i].color.x = colourVector.x;
+		preFabColouredVertices[i].color.y = colourVector.y;
+		preFabColouredVertices[i].color.z = colourVector.z;
+		preFabColouredVertices[i].color.w = colourVector.w;
 	}
+
+	m_colour = colour;
 
 	InitializeBuffers(device, true);
 }
