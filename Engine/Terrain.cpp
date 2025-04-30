@@ -523,12 +523,6 @@ float Terrain::Fade(float t)
 	return t * t * t * (t * (t * 6 - 15) + 10);
 }
 
-float Terrain::Lerp(float t, float a, float b)
-{
-	// Linear interpolation
-	return a + t * (b - a);
-}
-
 float Terrain::Grad(int hash, float x, float y)
 {
 	// Ensure hash is within the permutation table range
@@ -574,12 +568,12 @@ float Terrain::PerlinNoise2D(float x, float y)
 	int BB = m_permutation[(B + 1) & 255];
 
 	// Blend corner gradients
-	return Lerp(v,
-		Lerp(u,
+	return Utils::Lerp(v,
+		Utils::Lerp(u,
 			Grad(m_permutation[AA], x, y),
 			Grad(m_permutation[BA], x - 1, y)
 		),
-		Lerp(u,
+		Utils::Lerp(u,
 			Grad(m_permutation[AB], x, y - 1),
 			Grad(m_permutation[BB], x - 1, y - 1)
 		)
@@ -886,8 +880,8 @@ const bool Terrain::IsPointInRegion(int x, int z, VoronoiRegion* region) const
 float Terrain::GetHeightAt(float x, float z) const
 {
 	// Clamp x and z to terrain grid coordinates
-	x = Utils::clamp(x, 0.0f, static_cast<float>(m_terrainWidth - 1));
-	z = Utils::clamp(z, 0.0f, static_cast<float>(m_terrainHeight - 1));
+	x = Utils::Clamp(x, 0.0f, static_cast<float>(m_terrainWidth - 1));
+	z = Utils::Clamp(z, 0.0f, static_cast<float>(m_terrainHeight - 1));
 
 	int x0 = static_cast<int>(x);
 	int z0 = static_cast<int>(z);

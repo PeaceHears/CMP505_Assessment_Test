@@ -60,6 +60,9 @@ public:
 
 	float GetBoundingRadius() const;
 
+	void SetColliding(const bool colliding) { isColliding = colliding; }
+	const bool IsColliding() const { return isColliding; }
+
 private:
 	bool InitializeBuffers(ID3D11Device*, const bool isColoured = false);
 	void ShutdownBuffers();
@@ -81,6 +84,8 @@ private:
 	DirectX::SimpleMath::Vector3 m_scale = DirectX::SimpleMath::Vector3::Zero;
 	DirectX::SimpleMath::Vector3 m_position = DirectX::SimpleMath::Vector3::Zero;
 	DirectX::SimpleMath::Vector3 m_rotation = DirectX::SimpleMath::Vector3::Zero;
+
+	bool isColliding = false;
 };
 
 #endif

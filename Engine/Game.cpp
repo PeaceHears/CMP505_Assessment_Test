@@ -5,10 +5,10 @@
 #include "pch.h"
 #include "Game.h"
 
+#include "Utils.h"
+
 //toreorganise
 #include <fstream>
-
-#include "Utils.h"
 
 extern void ExitGame();
 
@@ -577,11 +577,6 @@ void Game::UpdateDroneMovement()
     // Update drone position to camera position plus the offset
     Vector3 dronePosition = cameraPosition + droneOffset;
 
-    // Set the updated position to the drone
-    m_BasicModel2.SetPosition(dronePosition);
-
-    // --- Collision Detection ---
-    dronePosition = m_BasicModel2.GetPosition(); // Get the updated position
 
     // --- Collision Detection ---
     // 
@@ -635,6 +630,8 @@ void Game::UpdateDroneMovement()
     const bool isOverTerrain = (localX >= 0 && localX < m_Terrain.GetWidth() &&
                                 localZ >= 0 && localZ < m_Terrain.GetHeight());
 
+    m_BasicModel2.SetColliding(false);
+
     if (isOverTerrain)
     {
         // Get terrain height in world space
@@ -643,31 +640,35 @@ void Game::UpdateDroneMovement()
 
         // Drone collision parameters
         const float droneRadius = m_BasicModel2.GetBoundingRadius();
-        //const float droneTop = dronePosition.y + droneRadius;
         const float droneBottom = dronePosition.y - droneRadius;
-        //const bool isMovingUp = dronePosition.y > m_previousDroneY; // Check movement direction
 
         // Check penetration from above or below
         const bool isPenetratingFromAbove = (droneBottom < terrainWorldY);
-        //bool isPenetratingFromBelow = (droneTop > terrainWorldY);
 
         // Resolve collision based on movement direction
-        if (isPenetratingFromAbove /* || isPenetratingFromBelow*/)
+        if (isPenetratingFromAbove)
         {
-            if (isPenetratingFromAbove)
-            {
-                // From above: Push up to terrain surface
-                dronePosition.y = terrainWorldY + droneRadius;
-            }
-            //else if (isPenetratingFromBelow && isMovingUp)
-            //{
-            //    // From below and moving up: Push down below terrain
-            //    dronePosition.y = terrainWorldY - droneRadius;
-            //}
-
-            m_BasicModel2.SetPosition(dronePosition);
+            // From above: Push up to terrain surface
+            dronePosition.y = terrainWorldY + droneRadius;
+			m_BasicModel2.SetColliding(true);
         }
     }
+
+    //if (m_BasicModel2.IsColliding())
+    //{
+    //    // Smoothly move drone upward if colliding
+    //    // Lerp towards target Y position
+    //    const float SMOOTH_SPEED = 5.0f;
+
+    //    // Calculate interpolation factor (clamped between 0 and 1)
+    //    float t = SMOOTH_SPEED * static_cast<float>(m_timer.GetElapsedSeconds());
+    //    t = Utils::Clamp(t, 0.0f, 1.0f); // Ensure no overshooting
+
+    //    const float targetYPosition = dronePosition.y + 10.0f;
+    //    dronePosition.y = Utils::Lerp(dronePosition.y, targetYPosition, t);
+    //}
+
+    m_BasicModel2.SetPosition(dronePosition);
 
     // Update previous Y for next frame
     m_previousDroneY = dronePosition.y;
@@ -682,6 +683,7 @@ void Game::UpdateCameraMovement()
 
     // Calculate camera movement based on WASD input
     Vector3 cameraMovement = Vector3::Zero;
+	const bool isDroneColliding = m_BasicModel2.IsColliding();
 
     // Forward and backward movement
     if (m_gameInputCommands.forward)
@@ -708,7 +710,7 @@ void Game::UpdateCameraMovement()
     {
         cameraMovement += Vector3::UnitY * moveSpeed; // Straight up
     }
-    if (m_gameInputCommands.down)
+    if (m_gameInputCommands.down && !isDroneColliding)
     {
         cameraMovement -= Vector3::UnitY * moveSpeed; // Straight down
     }

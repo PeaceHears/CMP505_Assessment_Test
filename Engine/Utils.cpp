@@ -16,3 +16,9 @@ int Utils::GetRandomInt(int min, int max)
     // Generate and return random number
     return dis(gen);
 }
+
+const float Utils::Lerp(float a, float b, float t)
+{
+    // Linear interpolation
+    return a + t * (b - a);
+}

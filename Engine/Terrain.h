@@ -74,7 +74,6 @@ private:
 	// Perlin Noise helper methods
 	float PerlinNoise2D(float x, float y);
 	float Fade(float t);
-	float Lerp(float t, float a, float b);
 	float Grad(int hash, float x, float y);
 	void GeneratePermutationTable();
 
