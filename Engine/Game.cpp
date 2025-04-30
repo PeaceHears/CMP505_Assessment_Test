@@ -472,6 +472,11 @@ void Game::SetupGUI()
 
     ImGui::Separator();
 
+    ImGui::Text("Drone Local X Position: %.2f", m_localDroneX);
+    ImGui::Text("Drone Local Z Position: %.2f", m_localDroneZ);
+
+    ImGui::Separator();
+
 	const auto& regions = m_Terrain.GetVoronoiRegions();
 	ImGui::Text("Voronoi Regions: %d", regions.size());
 
@@ -621,19 +626,19 @@ void Game::UpdateDroneMovement()
     // TODO: Implement "from down of terrain to up" logic
     // 
     // Convert to terrain-local coordinates (reverse scaling and translation)
-    const float localX = (dronePosition.x - m_terrainTranslation.x) / m_terrainScale;
-    const float localZ = (dronePosition.z - m_terrainTranslation.z) / m_terrainScale;
+    m_localDroneX = (dronePosition.x - m_terrainTranslation.x) / m_terrainScale;
+    m_localDroneZ = (dronePosition.z - m_terrainTranslation.z) / m_terrainScale;
 
     // Check if drone is over the terrain
-    const bool isOverTerrain = (localX >= 0 && localX < m_Terrain.GetWidth() &&
-                                localZ >= 0 && localZ < m_Terrain.GetHeight());
+    const bool isOverTerrain = (m_localDroneX >= 0 && m_localDroneX < m_Terrain.GetWidth() &&
+                                m_localDroneZ >= 0 && m_localDroneZ < m_Terrain.GetHeight());
 
     m_BasicModel2.SetColliding(false);
 
     if (isOverTerrain)
     {
         // Get terrain height in world space
-        const float terrainLocalY = m_Terrain.GetHeightAt(localX, localZ);
+        const float terrainLocalY = m_Terrain.GetHeightAt(m_localDroneX, m_localDroneZ);
         const float terrainWorldY = (terrainLocalY * m_terrainScale) + m_terrainTranslation.y;
 
         // Drone collision parameters
@@ -671,10 +676,10 @@ void Game::UpdateDroneMovement()
     // Update previous Y for next frame
     m_previousDroneY = dronePosition.y;
 
-    //if (m_BasicModel2.IsColliding())
-    //{
-		//CheckDroneRegionProgress(localX, localZ);
-    //}
+    if (m_BasicModel2.IsColliding())
+    {
+		CheckDroneRegionProgress(m_localDroneX, m_localDroneZ);
+    }
 
     // ****** To collide drone with only terrain ******
 }
@@ -747,7 +752,7 @@ void Game::CheckDroneRegionProgress(const float localX, const float localZ)
 
 void Game::HandleTargetRegionReached()
 {
-
+    level++;
 }
 
 void Game::DrawLevelIndicator()

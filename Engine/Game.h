@@ -160,4 +160,6 @@ private:
     DirectX::SimpleMath::Vector3 m_terrainTranslation = DirectX::SimpleMath::Vector3(0.0f, -0.6f, 0.0f);
 
 	float m_previousDroneY = 0.0f;
+    float m_localDroneX = 0.0f;
+    float m_localDroneZ = 0.0f;
 };

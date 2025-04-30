@@ -800,25 +800,41 @@ const Enums::COLOUR& Terrain::GetRandomVoronoiRegionColour() const
 	return randomRegion.colour;
 }
 
-const Enums::COLOUR& Terrain::GetRegionColourAtPosition(float x, float z) const
+const Enums::COLOUR& Terrain::GetRegionColourAtPosition(const float x, const float z)
 {
-	const float EPSILON = 0.001f; // Tolerance for floating-point precision
+	float minDistance = std::numeric_limits<float>::max();
+	VoronoiRegion* closestRegion = nullptr;
 
-	for (const auto& region : m_voronoiRegions)
+	for (auto& region : m_voronoiRegions)
 	{
-		// Check if (x,z) is within the region's bounds (with tolerance)
-		bool withinX = (x >= region.minX - EPSILON) && (x <= region.maxX + EPSILON);
-		bool withinZ = (z >= region.minZ - EPSILON) && (z <= region.maxZ + EPSILON);
+		const float distance = CalculateDistance(x, z, region.position.x, region.position.z);
 
-		if (withinX && withinZ)
+		if (distance < minDistance)
 		{
-			return region.colour;
+			closestRegion = &region;
+			minDistance = distance;
 		}
 	}
 
-	// Fallback: Return default colour if no region found
-	static Enums::COLOUR defaultColour = Enums::COLOUR::White;
-	return defaultColour;
+	return closestRegion->colour;
+
+	//const float EPSILON = 0.001f; // Tolerance for floating-point precision
+
+	//for (const auto& region : m_voronoiRegions)
+	//{
+	//	// Check if (x,z) is within the region's bounds (with tolerance)
+	//	const bool withinX = (x >= region.minX - EPSILON) && (x <= region.maxX + EPSILON);
+	//	const bool withinZ = (z >= region.minZ - EPSILON) && (z <= region.maxZ + EPSILON);
+
+	//	if (withinX && withinZ)
+	//	{
+	//		return region.colour;
+	//	}
+	//}
+
+	//// Fallback: Return default colour if no region found
+	//static Enums::COLOUR defaultColour = Enums::COLOUR::White;
+	//return defaultColour;
 }
 
 const DirectX::SimpleMath::Vector4& Terrain::GetVoronoiRegionColourVector(const Enums::COLOUR& colour) const
@@ -910,3 +926,4 @@ float Terrain::GetHeightAt(float x, float z) const
 
 	return h;
 }
+
