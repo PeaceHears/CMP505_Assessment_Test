@@ -258,16 +258,6 @@ void Game::Render()
 	auto renderTargetView = m_deviceResources->GetRenderTargetView();
 	auto depthTargetView = m_deviceResources->GetDepthStencilView();
 
-    // Draw Title to the screen
-    m_sprites->Begin();
-	m_font->DrawString(m_sprites.get(), L"Advanced Procedural Methods", XMFLOAT2(10, 10), Colors::Yellow);
-    m_sprites->End();
-
-    // Draw Game Timer to the screen 
-	m_gameTimer.Render(m_sprites, m_font);
-
-	DrawLevelIndicator();
-
 	//Set Rendering states. 
 	context->OMSetBlendState(m_states->Opaque(), nullptr, 0xFFFFFFFF);
 	context->OMSetDepthStencilState(m_states->DepthDefault(), 0);
@@ -293,6 +283,16 @@ void Game::Render()
     m_BasicShaderPair.SetShaderParameters(context, &droneWorldMatrix, &m_view, &m_projection, &m_Drone_Light, m_texture2.Get());
 
     m_Drone.Render(context);
+
+    // Draw Title to the screen
+    m_sprites->Begin();
+    m_font->DrawString(m_sprites.get(), L"Advanced Procedural Methods", XMFLOAT2(10, 10), Colors::Yellow);
+    m_sprites->End();
+
+    // Draw Game Timer to the screen 
+    m_gameTimer.Render(m_sprites, m_font);
+
+    DrawLevelIndicator();
 
 	//render our GUI
 	ImGui::Render();
