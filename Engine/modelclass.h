@@ -23,7 +23,7 @@ using namespace DirectX;
 
 class ModelClass
 {
-private:
+public:
 	struct VertexType
 	{
 		DirectX::SimpleMath::Vector3 position;
@@ -65,6 +65,9 @@ public:
 
 	void SetColliding(const bool colliding) { isColliding = colliding; }
 	const bool IsColliding() const { return isColliding; }
+
+	ID3D11Buffer* GetVertexBuffer() { return m_vertexBuffer; }
+	ID3D11Buffer* GetIndexBuffer() { return m_indexBuffer; }
 
 private:
 	bool InitializeBuffers(ID3D11Device*, const bool isColoured = false);

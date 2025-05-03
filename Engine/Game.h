@@ -16,6 +16,8 @@
 #include "GameTimer.h"
 #include "Enums.h"
 
+class FractalObstacle;
+
 // A basic game implementation that creates a D3D11 device and
 // provides a game loop.
 class Game final : public DX::IDeviceNotify
@@ -58,6 +60,17 @@ private:
 		DirectX::XMMATRIX projection;
 	}; 
 
+    enum class ObstacleType { SPIKES, CRYSTALS, VINES };
+
+    struct RegionRule
+    {
+        Enums::COLOUR regionColour;
+        ObstacleType obstacleType;
+        std::string axiom;
+        std::vector<std::pair<char, std::string>> rules;
+        int iterations;
+    };
+
     void Update(DX::StepTimer const& timer);
     void Render();
     void Clear();
@@ -74,6 +87,10 @@ private:
     bool IsTargetRegion(const Enums::COLOUR& colour) const;
     void CheckDroneRegionProgress(const float localX, const float localZ);
     void HandleTargetRegionReached();
+
+    void InitializeRegionRules();
+    void GenerateFractalObstacles();
+    void RenderFractalObstacles(ID3D11DeviceContext* context);
 
     // Device resources.
     std::unique_ptr<DX::DeviceResources>    m_deviceResources;
@@ -116,7 +133,7 @@ private:
 	Terrain																	m_Terrain;
 	ModelClass																m_BasicModel;
 	ModelClass																m_Drone;
-	ModelClass																m_BasicModel3;
+	ModelClass																m_ObstacleModel;
 
 	//RenderTextures
 	RenderTexture*															m_FirstRenderPass;
@@ -162,4 +179,7 @@ private:
 	float m_previousDroneY = 0.0f;
     float m_localDroneX = 0.0f;
     float m_localDroneZ = 0.0f;
+
+    std::vector<RegionRule> m_regionRules;
+    std::vector<FractalObstacle> m_fractalObstacles;
 };

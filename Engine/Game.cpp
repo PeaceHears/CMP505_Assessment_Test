@@ -6,6 +6,8 @@
 #include "Game.h"
 
 #include "Utils.h"
+#include "LSystem.h"
+#include "FractalObstacle.h"
 
 //toreorganise
 #include <fstream>
@@ -96,6 +98,9 @@ void Game::Initialize(HWND window, int width, int height)
     m_gameTimer.Start();
 
     SetupDrone();
+
+    //InitializeRegionRules();
+    //GenerateFractalObstacles();
 	
 #ifdef DXTK_AUDIO
     // Create DirectXTK for Audio objects
@@ -264,7 +269,7 @@ void Game::Render()
 	context->RSSetState(m_states->CullClockwise());
 //	context->RSSetState(m_states->Wireframe());
 
-	//prepare transform for floor object. 
+	//Render terrain
 	m_world = SimpleMath::Matrix::Identity; //set world back to identity
 	SimpleMath::Matrix newPosition3 = SimpleMath::Matrix::CreateTranslation(m_terrainTranslation);
 	SimpleMath::Matrix newScale = SimpleMath::Matrix::CreateScale(0.1f);
@@ -272,17 +277,18 @@ void Game::Render()
 
 	m_BasicShaderPair.EnableShader(context);
 	m_BasicShaderPair.SetShaderParameters(context, &m_world, &m_view, &m_projection, &m_Light, m_texture1.Get());
-
 	m_Terrain.Render(context);
 
+    // Render drone
     SimpleMath::Matrix droneWorldMatrix = m_Drone.GetWorldMatrix();
     SimpleMath::Matrix droneScale = SimpleMath::Matrix::CreateScale(0.1f);
     //droneWorldMatrix *= droneScale;
 
     m_BasicShaderPair.EnableShader(context);
     m_BasicShaderPair.SetShaderParameters(context, &droneWorldMatrix, &m_view, &m_projection, &m_Drone_Light, m_texture2.Get());
-
     m_Drone.Render(context);
+
+    //RenderFractalObstacles(context);
 
     // Draw Title to the screen
     m_sprites->Begin();
@@ -302,7 +308,6 @@ void Game::Render()
     // Show the new frame.
     m_deviceResources->Present();
 }
-
 
 // Helper method to clear the back buffers.
 void Game::Clear()
@@ -406,7 +411,7 @@ void Game::CreateDeviceDependentResources()
 	//setup our test model
 	m_BasicModel.InitializeSphere(device);
     m_Drone.InitializeModel(device,"drone.obj", true);
-	m_BasicModel3.InitializeBox(device, 10.0f, 0.1f, 10.0f);	//box includes dimensions
+    m_ObstacleModel.InitializeBox(device, 0.2f, 1.0f, 0.2f);
 
 	//load and set up our Vertex and Pixel Shaders
 	m_BasicShaderPair.InitStandard(device, L"light_vs.cso", L"light_ps.cso");
@@ -763,6 +768,76 @@ void Game::DrawLevelIndicator()
     m_sprites->Begin();
     m_font->DrawString(m_sprites.get(), std::string(buffer).c_str(), XMFLOAT2(700, 10), Colors::Yellow);
     m_sprites->End();
+}
+
+void Game::InitializeRegionRules()
+{
+    RegionRule regionRule1 = { m_Terrain.GetRandomVoronoiRegionColour(), ObstacleType::SPIKES, "F", { {'F', "F[+F]F[-F]F"} }, 3 };
+    m_regionRules.push_back(regionRule1);
+
+    RegionRule regionRule2 = { m_Terrain.GetRandomVoronoiRegionColour(), ObstacleType::CRYSTALS, "F", { {'F', "FF+[+F-F-F]-[-F+F+F]"} }, 4 };
+    m_regionRules.push_back(regionRule2);
+
+    RegionRule regionRule3 = { m_Terrain.GetRandomVoronoiRegionColour(), ObstacleType::VINES, "F", { {'F', "F[+FF][-FF]F"} }, 3 };
+    m_regionRules.push_back(regionRule3);
+}
+
+void Game::GenerateFractalObstacles()
+{
+    for (const auto& region : m_Terrain.GetVoronoiRegions())
+    {
+        // Find the rule matching the region's colour
+        for (const auto& rule : m_regionRules)
+        {
+            if (region.colour != rule.regionColour)
+            {
+                continue;
+            }
+
+            // Randomize parameters for variety
+            const float angle = 25.0f + (rand() % 20); // 25°–45°
+            const float segmentLength = 1.5f + (rand() % 3); // 1.5–4.5 units
+
+            LSystem lsystem(rule.axiom, rule.rules, rule.iterations);
+            lsystem.Generate();
+
+            FractalObstacle obstacle
+            (
+                m_deviceResources->GetD3DDevice(),
+                region.position, // Spawn at region's seed point
+                angle,
+                segmentLength
+            );
+
+            obstacle.Generate(lsystem);
+            m_fractalObstacles.push_back(obstacle);
+
+            break;
+        }
+    }
+}
+
+void Game::RenderFractalObstacles(ID3D11DeviceContext* context)
+{
+    for (const auto& obstacle : m_fractalObstacles)
+    {
+        for (const auto& segment : obstacle.GetSegments())
+        {
+            Matrix scale = Matrix::CreateScale(0.2f, segment.length, 0.2f); // Scale Y-axis by segment length
+            Matrix rotation = Matrix::CreateFromYawPitchRoll(
+                XMConvertToRadians(segment.rotation.y),
+                XMConvertToRadians(segment.rotation.x),
+                XMConvertToRadians(segment.rotation.z)
+            );
+            Matrix translation = Matrix::CreateTranslation(segment.position);
+
+            Matrix world = scale * rotation * translation;
+
+            m_BasicShaderPair.EnableShader(context);
+            m_BasicShaderPair.SetShaderParameters(context, &world, &m_view, &m_projection, &m_Light, m_texture2.Get());
+            m_ObstacleModel.Render(context);
+        }
+    }
 }
 
 void Game::OnDeviceLost()
