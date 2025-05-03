@@ -90,7 +90,7 @@ void Game::Initialize(HWND window, int width, int height)
     m_Terrain.GenerateVoronoiRegions(m_deviceResources->GetD3DDevice(), 5);
 
 	SelectTargetRegion();
-    m_BasicModel2.ChangeColour(m_deviceResources->GetD3DDevice(), m_targetRegionColour, m_targetRegionColourVector);
+    m_Drone.ChangeColour(m_deviceResources->GetD3DDevice(), m_targetRegionColour, m_targetRegionColourVector);
 
 	m_gameTimer.SetStartTime(m_timer, 300.0f);
     m_gameTimer.Start();
@@ -285,14 +285,14 @@ void Game::Render()
 
 	m_Terrain.Render(context);
 
-    SimpleMath::Matrix droneWorldMatrix = m_BasicModel2.GetWorldMatrix();
+    SimpleMath::Matrix droneWorldMatrix = m_Drone.GetWorldMatrix();
     SimpleMath::Matrix droneScale = SimpleMath::Matrix::CreateScale(0.1f);
     //droneWorldMatrix *= droneScale;
 
     m_BasicShaderPair.EnableShader(context);
     m_BasicShaderPair.SetShaderParameters(context, &droneWorldMatrix, &m_view, &m_projection, &m_Drone_Light, m_texture2.Get());
 
-	m_BasicModel2.Render(context);
+    m_Drone.Render(context);
 
 	//render our GUI
 	ImGui::Render();
@@ -405,7 +405,7 @@ void Game::CreateDeviceDependentResources()
     
 	//setup our test model
 	m_BasicModel.InitializeSphere(device);
-	m_BasicModel2.InitializeModel(device,"drone.obj", true);
+    m_Drone.InitializeModel(device,"drone.obj", true);
 	m_BasicModel3.InitializeBox(device, 10.0f, 0.1f, 10.0f);	//box includes dimensions
 
 	//load and set up our Vertex and Pixel Shaders
@@ -458,14 +458,14 @@ void Game::SetupGUI()
 
     ImGui::Separator();
 
-	const auto& dronePosition = m_BasicModel2.GetPosition();
+	const auto& dronePosition = m_Drone.GetPosition();
     ImGui::Text("Drone X Position: %.2f", dronePosition.x);
     ImGui::Text("Drone Y Position: %.2f", dronePosition.y);
     ImGui::Text("Drone Z Position: %.2f", dronePosition.z);
 
     ImGui::Separator();
 
-    const auto& droneWorldPosition = m_BasicModel2.GetWorldPosition();
+    const auto& droneWorldPosition = m_Drone.GetWorldPosition();
     ImGui::Text("Drone World X Position: %.2f", droneWorldPosition.x);
     ImGui::Text("Drone World Y Position: %.2f", droneWorldPosition.y);
     ImGui::Text("Drone World Z Position: %.2f", droneWorldPosition.z);
@@ -553,7 +553,7 @@ void Game::HandleTimerExpiration()
 
     SelectTargetRegion();
 
-	m_BasicModel2.ChangeColour(m_deviceResources->GetD3DDevice(), m_targetRegionColour, m_targetRegionColourVector);
+    m_Drone.ChangeColour(m_deviceResources->GetD3DDevice(), m_targetRegionColour, m_targetRegionColourVector);
 
     m_gameTimer.Restart();
 
@@ -564,9 +564,9 @@ void Game::SetupDrone()
 {
     // Set the fixed position where the drone should appear
     Vector3 dronePosition = m_Camera01.getPosition() + Vector3(0, -5.0f, -10.0f); // Adjust height and distance
-	m_BasicModel2.SetScale(Vector3(0.1f, 0.1f, 0.1f)); // Set the scale of the drone model
-    m_BasicModel2.SetRotation(Vector3(0.0f, 0.0f, 0.0f)); // Set the desired rotation for static effect
-    m_BasicModel2.SetPosition(dronePosition); // Set the drone position
+    m_Drone.SetScale(Vector3(0.1f, 0.1f, 0.1f)); // Set the scale of the drone model
+    m_Drone.SetRotation(Vector3(0.0f, 0.0f, 0.0f)); // Set the desired rotation for static effect
+    m_Drone.SetPosition(dronePosition); // Set the drone position
 }
 
 void Game::UpdateDroneMovement()
@@ -633,7 +633,7 @@ void Game::UpdateDroneMovement()
     const bool isOverTerrain = (m_localDroneX >= 0 && m_localDroneX < m_Terrain.GetWidth() &&
                                 m_localDroneZ >= 0 && m_localDroneZ < m_Terrain.GetHeight());
 
-    m_BasicModel2.SetColliding(false);
+    m_Drone.SetColliding(false);
 
     if (isOverTerrain)
     {
@@ -642,7 +642,7 @@ void Game::UpdateDroneMovement()
         const float terrainWorldY = (terrainLocalY * m_terrainScale) + m_terrainTranslation.y;
 
         // Drone collision parameters
-        const float droneRadius = m_BasicModel2.GetBoundingRadius();
+        const float droneRadius = m_Drone.GetBoundingRadius();
         const float droneBottom = dronePosition.y - droneRadius;
 
         // Check penetration from above or below
@@ -653,7 +653,7 @@ void Game::UpdateDroneMovement()
         {
             // From above: Push up to terrain surface
             dronePosition.y = terrainWorldY + droneRadius;
-			m_BasicModel2.SetColliding(true);
+            m_Drone.SetColliding(true);
         }
     }
 
@@ -671,12 +671,12 @@ void Game::UpdateDroneMovement()
     //    dronePosition.y = Utils::Lerp(dronePosition.y, targetYPosition, t);
     //}
 
-    m_BasicModel2.SetPosition(dronePosition);
+    m_Drone.SetPosition(dronePosition);
 
     // Update previous Y for next frame
     m_previousDroneY = dronePosition.y;
 
-    if (m_BasicModel2.IsColliding())
+    if (m_Drone.IsColliding())
     {
 		CheckDroneRegionProgress(m_localDroneX, m_localDroneZ);
     }
@@ -691,7 +691,7 @@ void Game::UpdateCameraMovement()
 
     // Calculate camera movement based on WASD input
     Vector3 cameraMovement = Vector3::Zero;
-	const bool isDroneColliding = m_BasicModel2.IsColliding();
+	const bool isDroneColliding = m_Drone.IsColliding();
 
     // Forward and backward movement
     if (m_gameInputCommands.forward)

@@ -115,7 +115,7 @@ private:
 	//Scene. 
 	Terrain																	m_Terrain;
 	ModelClass																m_BasicModel;
-	ModelClass																m_BasicModel2;
+	ModelClass																m_Drone;
 	ModelClass																m_BasicModel3;
 
 	//RenderTextures
