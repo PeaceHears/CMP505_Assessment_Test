@@ -91,8 +91,7 @@ void Game::Initialize(HWND window, int width, int height)
 	m_Terrain.GeneratePerlinNoiseTerrain(m_deviceResources->GetD3DDevice(), 10.0f, 5);
     m_Terrain.GenerateVoronoiRegions(m_deviceResources->GetD3DDevice(), 5);
 
-	SelectTargetRegion();
-    m_Drone.ChangeColour(m_deviceResources->GetD3DDevice(), m_targetRegionColour, m_targetRegionColourVector);
+    ChangeTargetRegion();
 
 	m_gameTimer.SetStartTime(m_timer, 300.0f);
     m_gameTimer.Start();
@@ -560,7 +559,7 @@ void Game::HandleTimerExpiration()
     m_Terrain.GeneratePerlinNoiseTerrain(m_deviceResources->GetD3DDevice(), 10.0f, 5);
 	m_Terrain.GenerateVoronoiRegions(m_deviceResources->GetD3DDevice(), 5);
 
-    SelectTargetRegion();
+    ChangeTargetRegion();
 
     m_Drone.ChangeColour(m_deviceResources->GetD3DDevice(), m_targetRegionColour, m_targetRegionColourVector);
 
@@ -576,6 +575,8 @@ void Game::SetupDrone()
     m_Drone.SetScale(Vector3(0.1f, 0.1f, 0.1f)); // Set the scale of the drone model
     m_Drone.SetRotation(Vector3(0.0f, 0.0f, 0.0f)); // Set the desired rotation for static effect
     m_Drone.SetPosition(dronePosition); // Set the drone position
+
+    m_Drone.ChangeColour(m_deviceResources->GetD3DDevice(), m_targetRegionColour, m_targetRegionColourVector);
 }
 
 void Game::UpdateDroneMovement()
@@ -636,7 +637,7 @@ void Game::UpdateDroneMovement()
     // 
     // Convert to terrain-local coordinates (reverse scaling and translation)
 
-    CheckObjectCollisionWithTerrain(m_localDroneX, m_localDroneZ, dronePosition, m_Drone);
+    CheckObjectCollisionWithTerrain(m_localDroneX, m_localDroneZ, dronePosition, m_Drone, true);
 
     //if (m_BasicModel2.IsColliding())
     //{
@@ -654,11 +655,6 @@ void Game::UpdateDroneMovement()
 
     // Update previous Y for next frame
     m_previousDroneY = dronePosition.y;
-
-    if (m_Drone.IsColliding())
-    {
-		CheckDroneRegionProgress(m_localDroneX, m_localDroneZ);
-    }
 
     // ****** To collide drone with only terrain ******
 }
@@ -708,7 +704,7 @@ void Game::UpdateCameraMovement()
     m_Camera01.setPosition(cameraPosition);
 }
 
-void Game::SelectTargetRegion()
+void Game::ChangeTargetRegion()
 {
     m_targetRegionColour = m_Terrain.GetRandomVoronoiRegionColour();
 	m_targetRegionColourVector = m_Terrain.GetVoronoiRegionColourVector(m_targetRegionColour);
@@ -722,16 +718,14 @@ bool Game::IsTargetRegion(const Enums::COLOUR& colour) const
 void Game::CheckDroneRegionProgress(const float localX, const float localZ)
 {
     const auto currentRegionColour = m_Terrain.GetRegionColourAtPosition(localX, localZ);
-
-    if (IsTargetRegion(currentRegionColour))
-    {
-        HandleTargetRegionReached();
-    }
+    HandleTargetRegionReached(currentRegionColour);
 }
 
-void Game::HandleTargetRegionReached()
+void Game::HandleTargetRegionReached(const Enums::COLOUR& regionColour)
 {
-    level++;
+    m_Drone.ChangeColour(m_deviceResources->GetD3DDevice(),
+        regionColour,
+        m_Terrain.GetVoronoiRegionColourVector(regionColour));
 }
 
 void Game::DrawLevelIndicator()
@@ -860,7 +854,8 @@ void Game::RenderObjectsAtRandomLocations(ID3D11DeviceContext* context)
 }
 
 void Game::CheckObjectCollisionWithTerrain(float& localPositionX, float& localPositionZ,
-                                            DirectX::SimpleMath::Vector3& worldPosition, ModelClass& model)
+                                            DirectX::SimpleMath::Vector3& worldPosition, ModelClass& model,
+                                            const bool isPlayer)
 {
     localPositionX = (worldPosition.x - m_terrainTranslation.x) / m_terrainScale;
     localPositionZ = (worldPosition.z - m_terrainTranslation.z) / m_terrainScale;
@@ -890,6 +885,11 @@ void Game::CheckObjectCollisionWithTerrain(float& localPositionX, float& localPo
             // From above: Push up to terrain surface
             worldPosition.y = terrainWorldY + modelRadius;
             model.SetColliding(true);
+
+            if (isPlayer)
+            {
+                CheckDroneRegionProgress(m_localDroneX, m_localDroneZ);
+            }
         }
     }
 

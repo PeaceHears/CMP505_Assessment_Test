@@ -82,11 +82,11 @@ private:
     void SetupDrone();
     void UpdateCameraMovement();
     void UpdateDroneMovement();
-    void SelectTargetRegion();
+    void ChangeTargetRegion();
     void DrawLevelIndicator();
     bool IsTargetRegion(const Enums::COLOUR& colour) const;
     void CheckDroneRegionProgress(const float localX, const float localZ);
-    void HandleTargetRegionReached();
+    void HandleTargetRegionReached(const Enums::COLOUR& regionColour);
 
     void InitializeRegionRules();
     void GenerateFractalObstacles();
@@ -94,9 +94,9 @@ private:
 
     void CreateObjectsVector(int count);
     void RenderObjectsAtRandomLocations(ID3D11DeviceContext* context);
-
     void CheckObjectCollisionWithTerrain(float& localPositionX, float& localPositionZ,
-                                            DirectX::SimpleMath::Vector3& worldPosition, ModelClass& model);
+                                            DirectX::SimpleMath::Vector3& worldPosition, ModelClass& model,
+                                            const bool isPlayer = false);
 
     // Device resources.
     std::unique_ptr<DX::DeviceResources>    m_deviceResources;
