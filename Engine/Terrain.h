@@ -87,7 +87,7 @@ private:
 
 	DirectX::SimpleMath::Vector4 GetColorByHeight(float height);
 	float CalculateDistance(float x1, float y1, float x2, float y2) const;
-	const Enums::COLOUR& GetRandomColour() const;
+	const Enums::COLOUR& GetRandomColour();
 	void FillVoronoiRegionColours();
 	const DirectX::SimpleMath::Vector3& GetRegionPosition(VoronoiRegion* region) const;
 	const bool IsPointInRegion(int x, int z, VoronoiRegion* region) const;
@@ -115,5 +115,6 @@ private:
 
 	std::vector<VoronoiRegion> m_voronoiRegions;
 	std::map<Enums::COLOUR, DirectX::SimpleMath::Vector4> m_voronoiRegionColours;
+	std::vector<Enums::COLOUR> m_randomVoronoiRegionColours;
 };
 

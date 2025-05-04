@@ -647,6 +647,13 @@ bool Terrain::GenerateVoronoiRegions(ID3D11Device* device, int numRegions)
 {
 	bool result = false;
 
+	m_randomVoronoiRegionColours.clear();
+
+	for each (auto voronoiRegionColour in m_voronoiRegionColours)
+	{
+		m_randomVoronoiRegionColours.push_back(voronoiRegionColour.first);
+	}
+
 	// Clear existing regions
 	m_voronoiRegions.clear();
 
@@ -747,7 +754,7 @@ void Terrain::FillVoronoiRegionColours()
 	m_voronoiRegionColours[Enums::COLOUR::RosyBrown] = DirectX::Colors::RosyBrown;
 }
 
-const Enums::COLOUR& Terrain::GetRandomColour() const
+const Enums::COLOUR& Terrain::GetRandomColour()
 {
 	//std::random_device rd;
 	//std::mt19937 gen(rd());
@@ -760,17 +767,19 @@ const Enums::COLOUR& Terrain::GetRandomColour() const
 	//	1.0f       // Full opacity
 	//);
 
-	const auto voronoiRegionColourCount = m_voronoiRegionColours.size();
+	const auto voronoiRegionColourCount = m_randomVoronoiRegionColours.size();
 	const auto randomIndex = Utils::GetRandomInt(0, voronoiRegionColourCount - 1);
-	Enums::COLOUR randomColour;
+	const auto randomColour = m_randomVoronoiRegionColours[randomIndex];
 
-	for (size_t i = 0; i < voronoiRegionColourCount; i++)
+	for (int i = 0; i < m_randomVoronoiRegionColours.size(); i++)
 	{
-		if (i == randomIndex)
+		if (i != randomIndex)
 		{
-			randomColour = static_cast<Enums::COLOUR>(i);
-			break;
+			continue;
 		}
+
+		m_randomVoronoiRegionColours.erase(m_randomVoronoiRegionColours.begin() + i);
+		break;
 	}
 
 	return randomColour;
