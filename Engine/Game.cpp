@@ -198,6 +198,8 @@ void Game::Update(DX::StepTimer const& timer)
     UpdateCameraMovement();
     UpdateDroneMovement();
 
+    CheckObjectColoursWithRegionColours();
+
 	m_Camera01.Update();	//camera update.
 	m_Terrain.Update();		//terrain update.  doesnt do anything at the moment. 
 
@@ -205,7 +207,7 @@ void Game::Update(DX::StepTimer const& timer)
 	m_world = Matrix::Identity;
 
 	/*create our UI*/
-	SetupGUI();
+    SetupImGUI();
 
     m_gameTimer.UpdateRemainingTime();
 
@@ -291,6 +293,18 @@ void Game::Render()
 
     //RenderFractalObstacles(context);
 
+    DrawGUIIndicators();
+
+	//render our GUI
+	ImGui::Render();
+	ImGui_ImplDX11_RenderDrawData(ImGui::GetDrawData());
+	
+    // Show the new frame.
+    m_deviceResources->Present();
+}
+
+void Game::DrawGUIIndicators()
+{
     // Draw Title to the screen
     m_sprites->Begin();
     m_font->DrawString(m_sprites.get(), L"Advanced Procedural Methods", XMFLOAT2(10, 10), Colors::Yellow);
@@ -300,14 +314,7 @@ void Game::Render()
     m_gameTimer.Render(m_sprites, m_font);
 
     DrawLevelIndicator();
-
-	//render our GUI
-	ImGui::Render();
-	ImGui_ImplDX11_RenderDrawData(ImGui::GetDrawData());
-	
-
-    // Show the new frame.
-    m_deviceResources->Present();
+    DrawMatchedColouredObjectCountIndicator();
 }
 
 // Helper method to clear the back buffers.
@@ -451,7 +458,7 @@ void Game::CreateWindowSizeDependentResources()
     );
 }
 
-void Game::SetupGUI()
+void Game::SetupImGUI()
 {
 	ImGui_ImplDX11_NewFrame();
 	ImGui_ImplWin32_NewFrame();
@@ -556,16 +563,14 @@ void Game::SetupGUI()
 
 void Game::HandleTimerExpiration()
 {
-    m_Terrain.GeneratePerlinNoiseTerrain(m_deviceResources->GetD3DDevice(), 10.0f, 5);
-	m_Terrain.GenerateVoronoiRegions(m_deviceResources->GetD3DDevice(), 5);
-
-    ChangeTargetRegion();
-
-    m_Drone.ChangeColour(m_deviceResources->GetD3DDevice(), m_targetRegionColour, m_targetRegionColourVector);
-
-    m_gameTimer.Restart();
-
-    level++;
+    if (IsWin())
+    {
+        OnWin();
+    }
+    else
+    {
+        RestartScene();
+    }
 }
 
 void Game::SetupDrone()
@@ -739,7 +744,17 @@ void Game::DrawLevelIndicator()
     sprintf_s(buffer, "Level: %d", level);
 
     m_sprites->Begin();
-    m_font->DrawString(m_sprites.get(), std::string(buffer).c_str(), XMFLOAT2(700, 10), Colors::Yellow);
+    m_font->DrawString(m_sprites.get(), std::string(buffer).c_str(), XMFLOAT2(800, 10), Colors::Yellow);
+    m_sprites->End();
+}
+
+void Game::DrawMatchedColouredObjectCountIndicator()
+{
+    char buffer[50];
+    sprintf_s(buffer, "Matched Coloured Objects: %d/%d", matchedColourCount, (int) m_objects.size());
+
+    m_sprites->Begin();
+    m_font->DrawString(m_sprites.get(), std::string(buffer).c_str(), XMFLOAT2(800, 50), Colors::Orange);
     m_sprites->End();
 }
 
@@ -864,7 +879,10 @@ void Game::CheckObjectCollisionWithTerrain(float& localPositionX, float& localPo
                                             const bool isPlayer)
 {
     localPositionX = (worldPosition.x - m_terrainTranslation.x) / m_terrainScale;
+    const auto localPositionY = (worldPosition.y - m_terrainTranslation.y) / m_terrainScale;
     localPositionZ = (worldPosition.z - m_terrainTranslation.z) / m_terrainScale;
+
+    model.SetLocalPosition(DirectX::SimpleMath::Vector3(localPositionX, localPositionY, localPositionZ));
 
     // Check if model is over the terrain
     const bool isOverTerrain = (localPositionX >= 0 && localPositionX < m_Terrain.GetWidth() &&
@@ -923,6 +941,61 @@ void Game::CheckDroneCollisions()
             object->SetCollidingWithModel(false);
         }
     }
+}
+
+void Game::CheckObjectColoursWithRegionColours()
+{
+    matchedColourCount = 0;
+
+    for each (auto& object in m_objects)
+    {
+        const auto objectPosition = object->GetLocalPosition();
+        const auto objectColour = object->GetColour();
+        const auto regionColour = m_Terrain.GetRegionColourAtPosition(objectPosition.x, objectPosition.z);
+
+        if (objectColour == regionColour)
+        {
+            matchedColourCount++;
+        }
+    }
+
+    CheckWin();
+}
+
+void Game::CheckWin()
+{
+    if (IsWin())
+    {
+        OnWin();
+    }
+}
+
+bool Game::IsWin()
+{
+    if (matchedColourCount == m_objects.size())
+    {
+        return true;
+    }
+
+    return false;
+}
+
+void Game::OnWin()
+{
+    RestartScene();
+    level++;
+}
+
+void Game::RestartScene()
+{
+    m_Terrain.GeneratePerlinNoiseTerrain(m_deviceResources->GetD3DDevice(), 10.0f, 5);
+    m_Terrain.GenerateVoronoiRegions(m_deviceResources->GetD3DDevice(), 5);
+
+    ChangeTargetRegion();
+
+    m_Drone.ChangeColour(m_deviceResources->GetD3DDevice(), m_targetRegionColour, m_targetRegionColourVector);
+
+    m_gameTimer.Restart();
 }
 
 void Game::OnDeviceLost()

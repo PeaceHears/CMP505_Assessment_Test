@@ -436,6 +436,16 @@ const DirectX::SimpleMath::Vector3& ModelClass::GetPosition() const
 	return m_position;
 }
 
+void ModelClass::SetLocalPosition(const DirectX::SimpleMath::Vector3& position)
+{
+	m_localPosition = position;
+}
+
+const DirectX::SimpleMath::Vector3& ModelClass::GetLocalPosition() const
+{
+	return m_localPosition;
+}
+
 const DirectX::SimpleMath::Vector3& ModelClass::GetWorldPosition() const
 {
 	const auto localPosition = GetPosition();

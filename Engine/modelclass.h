@@ -64,6 +64,9 @@ public:
 	void SetPosition(const DirectX::SimpleMath::Vector3& position);
 	const DirectX::SimpleMath::Vector3& GetPosition() const;
 
+	void SetLocalPosition(const DirectX::SimpleMath::Vector3& position);
+	const DirectX::SimpleMath::Vector3& GetLocalPosition() const;
+
 	void SetRotation(const DirectX::SimpleMath::Vector3& rotation);
 	const DirectX::SimpleMath::Vector3& GetRotation() const;
 
@@ -112,6 +115,8 @@ private:
 	DirectX::SimpleMath::Vector3 m_scale = DirectX::SimpleMath::Vector3::Zero;
 	DirectX::SimpleMath::Vector3 m_position = DirectX::SimpleMath::Vector3::Zero;
 	DirectX::SimpleMath::Vector3 m_rotation = DirectX::SimpleMath::Vector3::Zero;
+
+	DirectX::SimpleMath::Vector3 m_localPosition = DirectX::SimpleMath::Vector3::Zero;
 
 	bool isCollidingWithTerrain = false;
 	bool isCollidingWithModel = false;

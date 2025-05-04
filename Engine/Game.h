@@ -76,14 +76,16 @@ private:
     void Clear();
     void CreateDeviceDependentResources();
     void CreateWindowSizeDependentResources();
-	void SetupGUI();
+	void SetupImGUI();
 
     void HandleTimerExpiration();
     void SetupDrone();
     void UpdateCameraMovement();
     void UpdateDroneMovement();
     void ChangeTargetRegion();
+    void DrawGUIIndicators();
     void DrawLevelIndicator();
+    void DrawMatchedColouredObjectCountIndicator();
     bool IsTargetRegion(const Enums::COLOUR& colour) const;
     void CheckDroneRegionProgress(const float localX, const float localZ);
     void HandleTargetRegionReached(const Enums::COLOUR& regionColour);
@@ -98,6 +100,12 @@ private:
                                             DirectX::SimpleMath::Vector3& worldPosition, ModelClass& model,
                                             const bool isPlayer = false);
     void CheckDroneCollisions();
+    void CheckObjectColoursWithRegionColours();
+
+    void RestartScene();
+    void CheckWin();
+    bool IsWin();
+    void OnWin();
 
     // Device resources.
     std::unique_ptr<DX::DeviceResources>    m_deviceResources;
@@ -191,4 +199,6 @@ private:
 
     std::vector<RegionRule> m_regionRules;
     std::vector<FractalObstacle> m_fractalObstacles;
+
+    int matchedColourCount = 0;
 };
