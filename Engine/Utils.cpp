@@ -17,6 +17,14 @@ int Utils::GetRandomInt(int min, int max)
     return dis(gen);
 }
 
+float Utils::GetRandomFloat(float min, float max)
+{
+    static std::random_device rd;  // Seed
+    static std::mt19937 engine(rd()); // Mersenne Twister engine
+    std::uniform_real_distribution<float> dist(min, max);
+    return dist(engine);
+}
+
 const float Utils::Lerp(float a, float b, float t)
 {
     // Linear interpolation

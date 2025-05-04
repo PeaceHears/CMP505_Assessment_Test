@@ -99,6 +99,8 @@ void Game::Initialize(HWND window, int width, int height)
 
     SetupDrone();
 
+    CreateObjectsVector(10);
+
     //InitializeRegionRules();
     //GenerateFractalObstacles();
 	
@@ -281,12 +283,12 @@ void Game::Render()
 
     // Render drone
     SimpleMath::Matrix droneWorldMatrix = m_Drone.GetWorldMatrix();
-    SimpleMath::Matrix droneScale = SimpleMath::Matrix::CreateScale(0.1f);
-    //droneWorldMatrix *= droneScale;
 
     m_BasicShaderPair.EnableShader(context);
     m_BasicShaderPair.SetShaderParameters(context, &droneWorldMatrix, &m_view, &m_projection, &m_Drone_Light, m_texture2.Get());
     m_Drone.Render(context);
+
+    RenderObjectsAtRandomLocations(context);
 
     //RenderFractalObstacles(context);
 
@@ -407,9 +409,11 @@ void Game::CreateDeviceDependentResources()
 
 	//setup our terrain
 	m_Terrain.Initialize(device, 128, 128);
-    
+    m_Terrain.SetScale(m_terrainScale);
+    m_Terrain.SetTranslation(m_terrainTranslation);
+
 	//setup our test model
-	m_BasicModel.InitializeSphere(device);
+    m_Sphere.InitializeSphere(device);
     m_Drone.InitializeModel(device,"drone.obj", true);
     m_ObstacleModel.InitializeBox(device, 0.2f, 1.0f, 0.2f);
 
@@ -631,36 +635,8 @@ void Game::UpdateDroneMovement()
     // TODO: Implement "from down of terrain to up" logic
     // 
     // Convert to terrain-local coordinates (reverse scaling and translation)
-    m_localDroneX = (dronePosition.x - m_terrainTranslation.x) / m_terrainScale;
-    m_localDroneZ = (dronePosition.z - m_terrainTranslation.z) / m_terrainScale;
 
-    // Check if drone is over the terrain
-    const bool isOverTerrain = (m_localDroneX >= 0 && m_localDroneX < m_Terrain.GetWidth() &&
-                                m_localDroneZ >= 0 && m_localDroneZ < m_Terrain.GetHeight());
-
-    m_Drone.SetColliding(false);
-
-    if (isOverTerrain)
-    {
-        // Get terrain height in world space
-        const float terrainLocalY = m_Terrain.GetHeightAt(m_localDroneX, m_localDroneZ);
-        const float terrainWorldY = (terrainLocalY * m_terrainScale) + m_terrainTranslation.y;
-
-        // Drone collision parameters
-        const float droneRadius = m_Drone.GetBoundingRadius();
-        const float droneBottom = dronePosition.y - droneRadius;
-
-        // Check penetration from above or below
-        const bool isPenetratingFromAbove = (droneBottom < terrainWorldY);
-
-        // Resolve collision based on movement direction
-        if (isPenetratingFromAbove)
-        {
-            // From above: Push up to terrain surface
-            dronePosition.y = terrainWorldY + droneRadius;
-            m_Drone.SetColliding(true);
-        }
-    }
+    CheckObjectCollisionWithTerrain(m_localDroneX, m_localDroneZ, dronePosition, m_Drone);
 
     //if (m_BasicModel2.IsColliding())
     //{
@@ -675,8 +651,6 @@ void Game::UpdateDroneMovement()
     //    const float targetYPosition = dronePosition.y + 10.0f;
     //    dronePosition.y = Utils::Lerp(dronePosition.y, targetYPosition, t);
     //}
-
-    m_Drone.SetPosition(dronePosition);
 
     // Update previous Y for next frame
     m_previousDroneY = dronePosition.y;
@@ -838,6 +812,88 @@ void Game::RenderFractalObstacles(ID3D11DeviceContext* context)
             m_ObstacleModel.Render(context);
         }
     }
+}
+
+void Game::CreateObjectsVector(int count)
+{
+    for (size_t i = 0; i < count; i++)
+    {
+        const float randomScale = Utils::GetRandomFloat(0.1f, 0.5f);
+        const auto randomPosition = m_Terrain.GetRandomPosition();
+
+        //m_Sphere.SetPosition(randomPosition);
+        //m_Sphere.SetScale(Vector3(randomScale, randomScale, randomScale));
+
+        //SimpleMath::Matrix sphereWorldMatrix = m_Sphere.GetWorldMatrix();
+
+        //objectAttributes.worldMatrix = sphereWorldMatrix;
+
+        const auto randomVoronoiRegionColour = m_Terrain.GetRandomVoronoiRegionColour();
+
+        ModelClass model;
+        model.InitializeModel(m_deviceResources->GetD3DDevice(), "drone.obj", true);
+        model.ChangeColour(m_deviceResources->GetD3DDevice(),
+            randomVoronoiRegionColour,
+            m_Terrain.GetVoronoiRegionColourVector(randomVoronoiRegionColour));
+
+        model.SetPosition(randomPosition);
+        model.SetScale(Vector3(randomScale, randomScale, randomScale));
+
+        m_objects.push_back(model);
+    }
+}
+
+void Game::RenderObjectsAtRandomLocations(ID3D11DeviceContext* context)
+{
+    for each (auto object in m_objects)
+    {
+        float localPositionX = 0.0f;
+        float localPositionY = 0.0f;
+        auto worldPosition = object.GetPosition();
+
+        CheckObjectCollisionWithTerrain(localPositionX, localPositionY, worldPosition, object);
+
+        m_BasicShaderPair.EnableShader(context);
+        m_BasicShaderPair.SetShaderParameters(context, &object.GetWorldMatrix(), &m_view, &m_projection, &m_Light, m_texture2.Get());
+        object.Render(context);
+    }
+}
+
+void Game::CheckObjectCollisionWithTerrain(float& localPositionX, float& localPositionZ,
+                                            DirectX::SimpleMath::Vector3& worldPosition, ModelClass& model)
+{
+    localPositionX = (worldPosition.x - m_terrainTranslation.x) / m_terrainScale;
+    localPositionZ = (worldPosition.z - m_terrainTranslation.z) / m_terrainScale;
+
+    // Check if model is over the terrain
+    const bool isOverTerrain = (localPositionX >= 0 && localPositionX < m_Terrain.GetWidth() &&
+                                localPositionZ >= 0 && localPositionZ < m_Terrain.GetHeight());
+
+    model.SetColliding(false);
+
+    if (isOverTerrain)
+    {
+        // Get terrain height in world space
+        const float terrainLocalY = m_Terrain.GetHeightAt(localPositionX, localPositionZ);
+        const float terrainWorldY = (terrainLocalY * m_terrainScale) + m_terrainTranslation.y;
+
+        // Model collision parameters
+        const float modelRadius = model.GetBoundingRadius();
+        const float modelBottom = worldPosition.y - modelRadius;
+
+        // Check penetration from above or below
+        const bool isPenetratingFromAbove = (modelBottom <= terrainWorldY);
+
+        // Resolve collision based on movement direction
+        if (isPenetratingFromAbove)
+        {
+            // From above: Push up to terrain surface
+            worldPosition.y = terrainWorldY + modelRadius;
+            model.SetColliding(true);
+        }
+    }
+
+    model.SetPosition(worldPosition);
 }
 
 void Game::OnDeviceLost()

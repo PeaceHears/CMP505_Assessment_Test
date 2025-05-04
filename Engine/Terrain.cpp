@@ -816,6 +816,11 @@ const Enums::COLOUR& Terrain::GetRegionColourAtPosition(const float x, const flo
 		}
 	}
 
+	if (!closestRegion)
+	{
+		return Enums::COLOUR::White;
+	}
+
 	return closestRegion->colour;
 
 	//const float EPSILON = 0.001f; // Tolerance for floating-point precision
@@ -927,3 +932,20 @@ float Terrain::GetHeightAt(float x, float z) const
 	return h;
 }
 
+const DirectX::SimpleMath::Vector3& Terrain::GetRandomPosition() const
+{
+	DirectX::SimpleMath::Vector3 randomPosition(0.0f, 0.0f, 0.0f);
+	const auto randomHeightIndex = Utils::GetRandomInt(0, m_terrainHeight - 1);
+	const auto randomWidthIndex = Utils::GetRandomInt(0, m_terrainWidth - 1);
+
+	const int randomIndex = (m_terrainHeight * randomHeightIndex) + randomWidthIndex;
+
+	randomPosition.x += m_heightMap[randomIndex].x;
+	randomPosition.y += m_heightMap[randomIndex].y;
+	randomPosition.z += m_heightMap[randomIndex].z;
+
+	//Convert from local to world position
+	randomPosition = (randomPosition * m_Scale) + m_Translation;
+
+	return randomPosition;
+}

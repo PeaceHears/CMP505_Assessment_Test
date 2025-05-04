@@ -46,6 +46,12 @@ public:
 	float* GetWavelength();
 	float* GetAmplitude();
 
+	void SetScale(const float scale) { m_Scale = scale; }
+	const float GetScale() const { return m_Scale; }
+
+	void SetTranslation(const DirectX::SimpleMath::Vector3& translation) { m_Translation = translation; }
+	const DirectX::SimpleMath::Vector3& GetTranslation() const { return m_Translation; }
+
 	// For random height map
 	void SetRandomSeed(unsigned int seed);
 	bool GenerateRandomHeightMap(ID3D11Device*);
@@ -62,6 +68,8 @@ public:
 	float GetHeightAt(float x, float z) const;
 	int GetWidth() const { return m_terrainWidth; }
 	int GetHeight() const { return m_terrainHeight; }
+
+	const DirectX::SimpleMath::Vector3& GetRandomPosition() const;
 
 private:
 	bool CalculateNormals();
@@ -91,6 +99,9 @@ private:
 	int m_vertexCount, m_indexCount;
 	float m_frequency, m_amplitude, m_wavelength;
 	HeightMapType* m_heightMap;
+	
+	float m_Scale = 0.0f;
+	DirectX::SimpleMath::Vector3 m_Translation = DirectX::SimpleMath::Vector3(0.0f, 0.0f, 0.0f);
 
 	//arrays for our generated objects Made by directX
 	std::vector<VertexPositionNormalTexture> preFabVertices;

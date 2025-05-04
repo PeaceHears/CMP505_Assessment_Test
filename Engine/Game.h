@@ -58,7 +58,7 @@ private:
 		DirectX::XMMATRIX world;
 		DirectX::XMMATRIX view;
 		DirectX::XMMATRIX projection;
-	}; 
+	};
 
     enum class ObstacleType { SPIKES, CRYSTALS, VINES };
 
@@ -91,6 +91,12 @@ private:
     void InitializeRegionRules();
     void GenerateFractalObstacles();
     void RenderFractalObstacles(ID3D11DeviceContext* context);
+
+    void CreateObjectsVector(int count);
+    void RenderObjectsAtRandomLocations(ID3D11DeviceContext* context);
+
+    void CheckObjectCollisionWithTerrain(float& localPositionX, float& localPositionZ,
+                                            DirectX::SimpleMath::Vector3& worldPosition, ModelClass& model);
 
     // Device resources.
     std::unique_ptr<DX::DeviceResources>    m_deviceResources;
@@ -131,7 +137,7 @@ private:
 
 	//Scene. 
 	Terrain																	m_Terrain;
-	ModelClass																m_BasicModel;
+	ModelClass																m_Sphere;
 	ModelClass																m_Drone;
 	ModelClass																m_ObstacleModel;
 
@@ -179,6 +185,8 @@ private:
 	float m_previousDroneY = 0.0f;
     float m_localDroneX = 0.0f;
     float m_localDroneZ = 0.0f;
+
+    std::vector<ModelClass> m_objects;
 
     std::vector<RegionRule> m_regionRules;
     std::vector<FractalObstacle> m_fractalObstacles;
