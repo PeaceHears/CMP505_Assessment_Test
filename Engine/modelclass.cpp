@@ -3,6 +3,7 @@
 ////////////////////////////////////////////////////////////////////////////////
 #include "pch.h"
 #include "modelclass.h"
+#include "Utils.h"
 
 using namespace DirectX;
 
@@ -382,6 +383,24 @@ bool ModelClass::LoadModel(char* filename, bool isColoured)
 
 	m_originalRadius = maxDistance;
 
+	// Compute bounding box extents
+	DirectX::SimpleMath::Vector3 minBounds(FLT_MAX, FLT_MAX, FLT_MAX);
+	DirectX::SimpleMath::Vector3 maxBounds(-FLT_MAX, -FLT_MAX, -FLT_MAX);
+	
+	for (const auto& vertex : preFabVertices)
+	{
+		minBounds.x = std::min(minBounds.x, vertex.position.x);
+		minBounds.y = std::min(minBounds.y, vertex.position.y);
+		minBounds.z = std::min(minBounds.z, vertex.position.z);
+
+		maxBounds.x = std::max(maxBounds.x, vertex.position.x);
+		maxBounds.y = std::max(maxBounds.y, vertex.position.y);
+		maxBounds.z = std::max(maxBounds.z, vertex.position.z);
+	}
+
+	// Store original extents (half the size of the bounding box)
+	m_originalExtents = (maxBounds - minBounds) * 0.5f;
+
 	m_indexCount = vIndex;
 
 	verts.clear();
@@ -469,4 +488,61 @@ float ModelClass::GetBoundingRadius() const
 {
 	// Account for scaling (use the largest scale component)
 	return m_originalRadius * std::max({ m_scale.x, m_scale.y, m_scale.z });
+}
+
+ModelClass::BoundingSphere ModelClass::GetBoundingSphere() const
+{
+	return m_boundingSphere;
+}
+
+void ModelClass::UpdateBoundingSphere()
+{
+	// Update center based on world matrix
+	m_boundingSphere.center = GetPosition();
+
+	// Scale the original radius by the maximum scale component
+	float maxScale = std::max({ m_scale.x, m_scale.y, m_scale.z });
+	m_boundingSphere.radius = m_originalRadius * maxScale;
+}
+
+ModelClass::OBB ModelClass::GetOBB() const
+{
+	OBB obb;
+	obb.center = GetWorldPosition();
+	obb.extents = m_originalExtents * m_scale;
+
+	// Decompose the world matrix into scale, rotation (quaternion), and translation
+	DirectX::SimpleMath::Vector3 scale;
+	DirectX::SimpleMath::Quaternion rotation;
+	DirectX::SimpleMath::Vector3 translation;
+	GetWorldMatrix().Decompose(scale, rotation, translation);
+
+	obb.orientation = rotation;
+
+	return obb;
+}
+
+bool ModelClass::CheckCollision(const ModelClass& model)
+{
+	// Get drone's bounding volume
+	BoundingSphere sphere = GetBoundingSphere();
+	OBB obb = GetOBB();
+
+	// Broad-phase: Sphere-sphere check
+	BoundingSphere modelSphere = model.GetBoundingSphere();
+
+	if (!Utils::Collision::SphereSphere(sphere, modelSphere))
+	{
+		return false;
+	}
+
+	// Narrow-phase: OBB-OBB check
+	OBB modelOBB = model.GetOBB();
+
+	if (!Utils::Collision::OBBOBB(obb, modelOBB))
+	{
+		return false;
+	}
+
+	return true;
 }

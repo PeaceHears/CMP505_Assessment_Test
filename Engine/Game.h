@@ -97,6 +97,7 @@ private:
     void CheckObjectCollisionWithTerrain(float& localPositionX, float& localPositionZ,
                                             DirectX::SimpleMath::Vector3& worldPosition, ModelClass& model,
                                             const bool isPlayer = false);
+    void CheckDroneCollisions();
 
     // Device resources.
     std::unique_ptr<DX::DeviceResources>    m_deviceResources;
@@ -186,7 +187,7 @@ private:
     float m_localDroneX = 0.0f;
     float m_localDroneZ = 0.0f;
 
-    std::vector<ModelClass> m_objects;
+    std::vector<ModelClass*> m_objects;
 
     std::vector<RegionRule> m_regionRules;
     std::vector<FractalObstacle> m_fractalObstacles;

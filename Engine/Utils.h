@@ -1,4 +1,5 @@
 #pragma once
+#include "modelclass.h"
 
 namespace Utils
 {
@@ -12,5 +13,11 @@ namespace Utils
     }
 
     const float Lerp(float a, float b, float t);
+
+    namespace Collision
+    {
+        bool SphereSphere(const ModelClass::BoundingSphere& a, const ModelClass::BoundingSphere& b);
+        bool OBBOBB(const ModelClass::OBB& a, const ModelClass::OBB& b);
+    }
 }
 

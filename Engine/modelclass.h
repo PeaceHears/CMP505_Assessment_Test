@@ -32,6 +32,19 @@ public:
 		DirectX::SimpleMath::Vector4 colour;
 	};
 
+	struct BoundingSphere
+	{
+		DirectX::SimpleMath::Vector3 center;
+		float radius;
+	};
+
+	struct OBB
+	{
+		DirectX::SimpleMath::Vector3 center;
+		DirectX::SimpleMath::Vector3 extents;
+		DirectX::SimpleMath::Quaternion orientation;
+	};
+
 public:
 	ModelClass();
 	~ModelClass();
@@ -63,11 +76,21 @@ public:
 
 	float GetBoundingRadius() const;
 
-	void SetColliding(const bool colliding) { isColliding = colliding; }
-	const bool IsColliding() const { return isColliding; }
+	void SetCollidingWithTerrain(const bool colliding) { isCollidingWithTerrain = colliding; }
+	const bool IsCollidingWithTerrain() const { return isCollidingWithTerrain; }
+
+	void SetCollidingWithModel(const bool colliding) { isCollidingWithModel = colliding; }
+	const bool IsCollidingWithModel() const { return isCollidingWithModel; }
 
 	ID3D11Buffer* GetVertexBuffer() { return m_vertexBuffer; }
 	ID3D11Buffer* GetIndexBuffer() { return m_indexBuffer; }
+
+	BoundingSphere GetBoundingSphere() const;
+	void UpdateBoundingSphere(); // Call after position/scale changes
+
+	OBB GetOBB() const;
+
+	bool CheckCollision(const ModelClass& model);
 
 private:
 	bool InitializeBuffers(ID3D11Device*, const bool isColoured = false);
@@ -80,7 +103,6 @@ private:
 private:
 	ID3D11Buffer *m_vertexBuffer, *m_indexBuffer;
 	int m_vertexCount, m_indexCount;
-	float m_originalRadius = 0.0f;
 
 	//arrays for our generated objects Made by directX
 	std::vector<VertexPositionNormalTexture> preFabVertices;
@@ -91,9 +113,16 @@ private:
 	DirectX::SimpleMath::Vector3 m_position = DirectX::SimpleMath::Vector3::Zero;
 	DirectX::SimpleMath::Vector3 m_rotation = DirectX::SimpleMath::Vector3::Zero;
 
-	bool isColliding = false;
+	bool isCollidingWithTerrain = false;
+	bool isCollidingWithModel = false;
 
 	Enums::COLOUR m_colour;
+
+	BoundingSphere m_boundingSphere;
+	float m_originalRadius = 0.0f; // Precomputed during model initialization
+
+	OBB m_obb;
+	DirectX::SimpleMath::Vector3 m_originalExtents;
 };
 
 #endif

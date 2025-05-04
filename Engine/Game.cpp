@@ -85,7 +85,7 @@ void Game::Initialize(HWND window, int width, int height)
     m_Drone_Light.setDirection(-1.0f, -1.0f, 0.0f);
 
 	//setup camera
-	m_Camera01.setPosition(Vector3(0.0f, 0.0f, 4.0f));
+	m_Camera01.setPosition(Vector3(0.0f, 5.0f, 4.0f));
 	m_Camera01.setRotation(Vector3(-90.0f, -180.0f, 0.0f));	//orientation is -90 becuase zero will be looking up at the sky straight up. 
 
 	m_Terrain.GeneratePerlinNoiseTerrain(m_deviceResources->GetD3DDevice(), 10.0f, 5);
@@ -575,6 +575,7 @@ void Game::SetupDrone()
     m_Drone.SetScale(Vector3(0.1f, 0.1f, 0.1f)); // Set the scale of the drone model
     m_Drone.SetRotation(Vector3(0.0f, 0.0f, 0.0f)); // Set the desired rotation for static effect
     m_Drone.SetPosition(dronePosition); // Set the drone position
+    m_Drone.UpdateBoundingSphere();
 
     m_Drone.ChangeColour(m_deviceResources->GetD3DDevice(), m_targetRegionColour, m_targetRegionColourVector);
 }
@@ -639,6 +640,10 @@ void Game::UpdateDroneMovement()
 
     CheckObjectCollisionWithTerrain(m_localDroneX, m_localDroneZ, dronePosition, m_Drone, true);
 
+    m_Drone.UpdateBoundingSphere();
+
+    CheckDroneCollisions();
+
     //if (m_BasicModel2.IsColliding())
     //{
     //    // Smoothly move drone upward if colliding
@@ -666,7 +671,7 @@ void Game::UpdateCameraMovement()
 
     // Calculate camera movement based on WASD input
     Vector3 cameraMovement = Vector3::Zero;
-	const bool isDroneColliding = m_Drone.IsColliding();
+	const bool isDroneColliding = m_Drone.IsCollidingWithTerrain();
 
     // Forward and backward movement
     if (m_gameInputCommands.forward)
@@ -824,14 +829,15 @@ void Game::CreateObjectsVector(int count)
 
         const auto randomVoronoiRegionColour = m_Terrain.GetRandomVoronoiRegionColour();
 
-        ModelClass model;
-        model.InitializeModel(m_deviceResources->GetD3DDevice(), "drone.obj", true);
-        model.ChangeColour(m_deviceResources->GetD3DDevice(),
+        auto* model = new ModelClass();
+        model->InitializeModel(m_deviceResources->GetD3DDevice(), "drone.obj", true);
+        model->ChangeColour(m_deviceResources->GetD3DDevice(),
             randomVoronoiRegionColour,
             m_Terrain.GetVoronoiRegionColourVector(randomVoronoiRegionColour));
 
-        model.SetPosition(randomPosition);
-        model.SetScale(Vector3(randomScale, randomScale, randomScale));
+        model->SetPosition(randomPosition);
+        model->SetScale(Vector3(randomScale, randomScale, randomScale));
+        model->UpdateBoundingSphere();
 
         m_objects.push_back(model);
     }
@@ -839,17 +845,17 @@ void Game::CreateObjectsVector(int count)
 
 void Game::RenderObjectsAtRandomLocations(ID3D11DeviceContext* context)
 {
-    for each (auto object in m_objects)
+    for each (auto& object in m_objects)
     {
         float localPositionX = 0.0f;
         float localPositionY = 0.0f;
-        auto worldPosition = object.GetPosition();
+        auto worldPosition = object->GetPosition();
 
-        CheckObjectCollisionWithTerrain(localPositionX, localPositionY, worldPosition, object);
+        CheckObjectCollisionWithTerrain(localPositionX, localPositionY, worldPosition, *object);
 
         m_BasicShaderPair.EnableShader(context);
-        m_BasicShaderPair.SetShaderParameters(context, &object.GetWorldMatrix(), &m_view, &m_projection, &m_Light, m_texture2.Get());
-        object.Render(context);
+        m_BasicShaderPair.SetShaderParameters(context, &object->GetWorldMatrix(), &m_view, &m_projection, &m_Light, m_texture2.Get());
+        object->Render(context);
     }
 }
 
@@ -864,7 +870,7 @@ void Game::CheckObjectCollisionWithTerrain(float& localPositionX, float& localPo
     const bool isOverTerrain = (localPositionX >= 0 && localPositionX < m_Terrain.GetWidth() &&
                                 localPositionZ >= 0 && localPositionZ < m_Terrain.GetHeight());
 
-    model.SetColliding(false);
+    model.SetCollidingWithTerrain(false);
 
     if (isOverTerrain)
     {
@@ -884,7 +890,7 @@ void Game::CheckObjectCollisionWithTerrain(float& localPositionX, float& localPo
         {
             // From above: Push up to terrain surface
             worldPosition.y = terrainWorldY + modelRadius;
-            model.SetColliding(true);
+            model.SetCollidingWithTerrain(true);
 
             if (isPlayer)
             {
@@ -894,6 +900,29 @@ void Game::CheckObjectCollisionWithTerrain(float& localPositionX, float& localPo
     }
 
     model.SetPosition(worldPosition);
+}
+
+void Game::CheckDroneCollisions()
+{
+    const auto droneColour = m_Drone.GetColour();
+
+    for each (auto& object in m_objects)
+    {
+        if (m_Drone.CheckCollision(*object))
+        {
+            if (object->IsCollidingWithModel())
+            {
+                continue;
+            }
+
+            object->SetCollidingWithModel(true);
+            object->ChangeColour(m_deviceResources->GetD3DDevice(), droneColour, m_Terrain.GetVoronoiRegionColourVector(droneColour));
+        }
+        else
+        {
+            object->SetCollidingWithModel(false);
+        }
+    }
 }
 
 void Game::OnDeviceLost()
