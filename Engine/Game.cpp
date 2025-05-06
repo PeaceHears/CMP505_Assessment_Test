@@ -85,8 +85,12 @@ void Game::Initialize(HWND window, int width, int height)
     m_Drone_Light.setDirection(-1.0f, -1.0f, 0.0f);
 
 	//setup camera
-	m_Camera01.setPosition(Vector3(0.0f, 5.0f, 4.0f));
-	m_Camera01.setRotation(Vector3(-90.0f, -180.0f, 0.0f));	//orientation is -90 becuase zero will be looking up at the sky straight up. 
+    //m_cameraPosition = Vector3(-4.0f, 18.0f, 0.8f);
+    m_cameraPosition = Vector3(0.0f, 5.0f, 4.0f);
+    
+    m_cameraRotation = Vector3(-90.0f, -180.0f, 0.0f);
+	m_Camera01.setPosition(m_cameraPosition);
+	m_Camera01.setRotation(m_cameraRotation);	//orientation is -90 becuase zero will be looking up at the sky straight up. 
 
 	m_Terrain.GeneratePerlinNoiseTerrain(m_deviceResources->GetD3DDevice(), 10.0f, 5);
     m_Terrain.GenerateVoronoiRegions(m_deviceResources->GetD3DDevice(), 5);
@@ -150,6 +154,7 @@ void Game::Tick()
     {
         // Setup a retry in 1 second
         m_audioTimerAcc = 1.f;
+        m_audioTimerAcc = 1.f;
         m_retryDefault = true;
     }
 #endif
@@ -160,8 +165,8 @@ void Game::Tick()
 // Updates the world.
 void Game::Update(DX::StepTimer const& timer)
 {	
-	//this is hacky,  i dont like this here.  
-	auto device = m_deviceResources->GetD3DDevice();
+    //this is hacky,  i dont like this here.  
+    auto device = m_deviceResources->GetD3DDevice();
 
     // Calculate mouse deltas
     static int lastMouseX = m_gameInputCommands.mouseX;
@@ -190,7 +195,7 @@ void Game::Update(DX::StepTimer const& timer)
     //// Clamp vertical rotation to prevent flipping
     //rotation.x = std::max(-89.0f, std::min(rotation.x, 89.0f));
 
-	rotation.x = -50.0f; // Set fixed pitch angle
+    rotation.x = -50.0f; // Set fixed pitch angle
 
     // Set the new rotation for the camera
     m_Camera01.setRotation(rotation);
@@ -259,28 +264,122 @@ void Game::Render()
         return;
     }
 
-    Clear();
+    //RenderWithPostProcess();
+    RenderWithoutPostProcess();
+}
 
+void Game::RenderWithPostProcess()
+{
+    auto context = m_deviceResources->GetD3DDeviceContext();
+
+    // Clear the post-process render texture
+    float clearColor[4] = { 0.0f, 0.0f, 0.0f, 1.0f };
+    context->ClearRenderTargetView(m_PostProcessRenderTexture->getRenderTargetView(), clearColor);
+    context->ClearDepthStencilView(m_deviceResources->GetDepthStencilView(),
+        D3D11_CLEAR_DEPTH | D3D11_CLEAR_STENCIL,
+        1.0f,
+        0);
+
+    auto renderTargetView = m_PostProcessRenderTexture->getRenderTargetView();
+
+    // Set render target to post-process texture
+    context->OMSetRenderTargets(1, &renderTargetView, m_deviceResources->GetDepthStencilView());
+
+    // Set the viewport for the render texture
+    D3D11_VIEWPORT viewport;
+    viewport.Width = static_cast<float>(m_PostProcessRenderTexture->getTextureWidth());
+    viewport.Height = static_cast<float>(m_PostProcessRenderTexture->getTextureHeight());
+    viewport.MinDepth = 0.0f;
+    viewport.MaxDepth = 1.0f;
+    viewport.TopLeftX = 0.0f;
+    viewport.TopLeftY = 0.0f;
+    context->RSSetViewports(1, &viewport);
+
+    // Render scene components (your existing rendering logic)
+    // Set rendering states
+    context->OMSetBlendState(m_states->Opaque(), nullptr, 0xFFFFFFFF);
+    context->OMSetDepthStencilState(m_states->DepthDefault(), 0);
+    context->RSSetState(m_states->CullClockwise());
+
+    RenderScene(context);
+
+    // Restore the default render target
+    auto backBufferRTV = m_deviceResources->GetRenderTargetView();
+    context->OMSetRenderTargets(1, &backBufferRTV, m_deviceResources->GetDepthStencilView());
+
+    // Clear the back buffer
+    float clearColorBackBuffer[4] = { 0.5f, 0.5f, 0.5f, 1.0f };
+    context->ClearRenderTargetView(backBufferRTV, clearColorBackBuffer);
+
+    // Apply post-processing effect
+    context->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+
+    // Enable the post-process shader
+    m_PostProcessShader.EnableShader(context);
+
+    // Set shader parameters
+    DirectX::SimpleMath::Matrix identity = DirectX::SimpleMath::Matrix::Identity;
+    m_PostProcessShader.SetShaderParameters(
+        context,
+        &identity,
+        &identity,
+        &identity,
+        &m_Light,
+        m_PostProcessRenderTexture->getShaderResourceView(),
+        m_postProcessEffectType,
+        m_postProcessVignetteIntensity
+    );
+
+    // Draw full-screen triangle
+    context->Draw(3, 0);
+
+    DrawGUIIndicators();
+
+    // Render ImGui
+    ImGui::Render();
+    ImGui_ImplDX11_RenderDrawData(ImGui::GetDrawData());
+
+    // Present the frame
+    m_deviceResources->Present();
+}
+
+void Game::RenderWithoutPostProcess()
+{
+    Clear();
     m_deviceResources->PIXBeginEvent(L"Render");
     auto context = m_deviceResources->GetD3DDeviceContext();
-	auto renderTargetView = m_deviceResources->GetRenderTargetView();
-	auto depthTargetView = m_deviceResources->GetDepthStencilView();
+    auto renderTargetView = m_deviceResources->GetRenderTargetView();
+    auto depthTargetView = m_deviceResources->GetDepthStencilView();
 
-	//Set Rendering states. 
-	context->OMSetBlendState(m_states->Opaque(), nullptr, 0xFFFFFFFF);
-	context->OMSetDepthStencilState(m_states->DepthDefault(), 0);
-	context->RSSetState(m_states->CullClockwise());
-//	context->RSSetState(m_states->Wireframe());
+    //Set Rendering states. 
+    context->OMSetBlendState(m_states->Opaque(), nullptr, 0xFFFFFFFF);
+    context->OMSetDepthStencilState(m_states->DepthDefault(), 0);
+    context->RSSetState(m_states->CullClockwise());
+    //	context->RSSetState(m_states->Wireframe());
 
-	//Render terrain
-	m_world = SimpleMath::Matrix::Identity; //set world back to identity
-	SimpleMath::Matrix newPosition3 = SimpleMath::Matrix::CreateTranslation(m_terrainTranslation);
-	SimpleMath::Matrix newScale = SimpleMath::Matrix::CreateScale(0.1f);
-	m_world = m_world * newScale * newPosition3;
+    RenderScene(m_deviceResources->GetD3DDeviceContext());
 
-	m_BasicShaderPair.EnableShader(context);
-	m_BasicShaderPair.SetShaderParameters(context, &m_world, &m_view, &m_projection, &m_Light, m_texture1.Get());
-	m_Terrain.Render(context);
+    DrawGUIIndicators();
+
+    // Render ImGui
+    ImGui::Render();
+    ImGui_ImplDX11_RenderDrawData(ImGui::GetDrawData());
+
+    // Present the frame
+    m_deviceResources->Present();
+}
+
+void Game::RenderScene(ID3D11DeviceContext* context)
+{
+    //Render terrain
+    m_world = SimpleMath::Matrix::Identity; //set world back to identity
+    SimpleMath::Matrix newPosition3 = SimpleMath::Matrix::CreateTranslation(m_terrainTranslation);
+    SimpleMath::Matrix newScale = SimpleMath::Matrix::CreateScale(0.1f);
+    m_world = m_world * newScale * newPosition3;
+
+    m_BasicShaderPair.EnableShader(context);
+    m_BasicShaderPair.SetShaderParameters(context, &m_world, &m_view, &m_projection, &m_Light, m_texture1.Get());
+    m_Terrain.Render(context);
 
     // Render drone
     SimpleMath::Matrix droneWorldMatrix = m_Drone.GetWorldMatrix();
@@ -293,14 +392,6 @@ void Game::Render()
 
     //RenderFractalObstacles(context);
 
-    DrawGUIIndicators();
-
-	//render our GUI
-	ImGui::Render();
-	ImGui_ImplDX11_RenderDrawData(ImGui::GetDrawData());
-	
-    // Show the new frame.
-    m_deviceResources->Present();
 }
 
 void Game::DrawGUIIndicators()
@@ -378,6 +469,19 @@ void Game::OnWindowSizeChanged(int width, int height)
         return;
 
     CreateWindowSizeDependentResources();
+
+    // Recreate post-process render texture with new dimensions
+    if (m_PostProcessRenderTexture)
+    {
+        delete m_PostProcessRenderTexture;
+        m_PostProcessRenderTexture = new RenderTexture(
+            m_deviceResources->GetD3DDevice(),
+            width,
+            height,
+            0.1f,
+            100.0f
+        );
+    }
 }
 
 #ifdef DXTK_AUDIO
@@ -425,7 +529,8 @@ void Game::CreateDeviceDependentResources()
 
 	//load and set up our Vertex and Pixel Shaders
 	m_BasicShaderPair.InitStandard(device, L"light_vs.cso", L"light_ps.cso");
-    m_Drone_Light_Shader.InitStandard(device, L"light_vs.cso", L"light_ps.cso");
+
+    CreatePostProcessResources();
 
 	//load Textures
 	CreateDDSTextureFromFile(device, L"seafloor.dds",		nullptr,	m_texture1.ReleaseAndGetAddressOf());
@@ -470,6 +575,34 @@ void Game::SetupImGUI()
     ImGui::Text("Camera X Position: %.2f", cameraPosition.x);
     ImGui::Text("Camera Y Position: %.2f", cameraPosition.y);
     ImGui::Text("Camera Z Position: %.2f", cameraPosition.z);
+
+    if (ImGui::SliderFloat("Camera X Position: %.2f", &m_cameraPosition.x, -360.0f, 360.0f))
+    {
+        m_Camera01.setPosition(m_cameraPosition);
+    }
+    if (ImGui::SliderFloat("Camera Y Position: %.2f", &m_cameraPosition.y, -360.0f, 360.0f))
+    {
+        m_Camera01.setPosition(m_cameraPosition);
+    }
+    if (ImGui::SliderFloat("Camera Z Position: %.2f", &m_cameraPosition.z, -360.0f, 360.0f))
+    {
+        m_Camera01.setPosition(m_cameraPosition);
+    }
+
+    ImGui::Separator();
+
+    if (ImGui::SliderFloat("Camera X Rotation: %.2f", &m_cameraRotation.x, -360.0f, 360.0f))
+    {
+        m_Camera01.setRotation(m_cameraRotation);
+    }
+    if (ImGui::SliderFloat("Camera Y Rotation: %.2f", &m_cameraRotation.y, -360.0f, 360.0f))
+    {
+        m_Camera01.setRotation(m_cameraRotation);
+    }
+    if (ImGui::SliderFloat("Camera Z Rotation: %.2f", &m_cameraRotation.z, -360.0f, 360.0f))
+    {
+        m_Camera01.setRotation(m_cameraRotation);
+    }
 
     ImGui::Separator();
 
@@ -559,6 +692,39 @@ void Game::SetupImGUI()
     }
 
 	ImGui::End();
+
+    SetupPostProcessImGUI();
+}
+
+void Game::SetupPostProcessImGUI()
+{
+    ImGui::Begin("Post-Processing Effects");
+
+    m_postProcessEffectType = 1;
+    const char* effects[] = {
+        "Normal",
+        "Invert",
+        "Grayscale",
+        "Sepia",
+        "Vignette"
+    };
+    ImGui::Combo("Effect Type", &m_postProcessEffectType, effects, IM_ARRAYSIZE(effects));
+
+    // Add additional effect-specific parameters here
+    switch (m_postProcessEffectType)
+    {
+        case 1: // Invert
+            break;
+        case 2: // Grayscale
+            break;
+        case 3: // Sepia
+            break;
+        case 4: // Vignette
+            ImGui::SliderFloat("Vignette Intensity", &m_postProcessVignetteIntensity, 0.0f, 1.0f);
+            break;
+    }
+
+    ImGui::End();
 }
 
 void Game::HandleTimerExpiration()
@@ -589,59 +755,8 @@ void Game::UpdateDroneMovement()
 {
     // Keep drone at a fixed offset from camera
     Vector3 cameraPosition = m_Camera01.getPosition();
-
-    // Define fixed offset (2 units in front of the camera and slightly above)
     Vector3 droneOffset = m_Camera01.GetForwardVector() * 1.0f + m_Camera01.GetUpVector() * -0.5f;
-
-    // Update drone position to camera position plus the offset
-    Vector3 dronePosition = cameraPosition + droneOffset;
-
-
-    // --- Collision Detection ---
-    // 
-    // 
-	// ****** To restrict drone movement to terrain bounds ******
-    // 
-    //float terrainWorldWidth = (m_Terrain.GetWidth() * 0.1f);  // Scaled by 0.1f
-    //float terrainWorldHeight = (m_Terrain.GetHeight() * 0.1f);  // Scaled by 0.1f
-    //float terrainWorldMinX = 0.0f;                           // Assuming terrain starts at X=0
-    //float terrainWorldMinZ = 0.0f;                           // Assuming terrain starts at Z=0
-    //float terrainWorldMaxX = terrainWorldWidth;              // Max X in world space
-    //float terrainWorldMaxZ = terrainWorldHeight;             // Max Z in world space
-    // 
-    //// 1. Clamp X/Z to terrain bounds
-    //dronePosition.x = Utils::clamp(dronePosition.x, terrainWorldMinX, terrainWorldMaxX);
-    //dronePosition.z = Utils::clamp(dronePosition.z, terrainWorldMinZ, terrainWorldMaxZ);
-
-    //// 2. Terrain height check (Y-axis)
-    // Convert drone's world position to terrain's local coordinates (considering scaling)
-    //float localX = dronePosition.x / m_droneScale;  // Convert to terrain-local space
-    //float localZ = dronePosition.z / m_droneScale;
-
-    ////TODO: Try colour check with these local values
-
-    //float terrainLocalY = m_Terrain.GetHeightAt(localX, localZ);
-    //float terrainWorldY = (terrainLocalY * 0.1f) - 0.6f;  // Apply scaling/translation
-
-    //// 3. Push drone up if below terrain
-    //float droneRadius = m_BasicModel2.GetBoundingRadius();
-    //float droneBottom = dronePosition.y - droneRadius;
-
-    //if (droneBottom < terrainWorldY)
-    //{
-    //    dronePosition.y = terrainWorldY + droneRadius;
-    //}
-
-    //m_BasicModel2.SetPosition(dronePosition);
-
-	// ****** To restrict drone movement to terrain bounds ******
-
-
-    // ****** To collide drone with only terrain ******
-
-    // TODO: Implement "from down of terrain to up" logic
-    // 
-    // Convert to terrain-local coordinates (reverse scaling and translation)
+    Vector3 dronePosition = cameraPosition+ droneOffset;
 
     CheckObjectCollisionWithTerrain(m_localDroneX, m_localDroneZ, dronePosition, m_Drone, true);
 
@@ -649,34 +764,16 @@ void Game::UpdateDroneMovement()
 
     CheckDroneCollisions();
 
-    //if (m_BasicModel2.IsColliding())
-    //{
-    //    // Smoothly move drone upward if colliding
-    //    // Lerp towards target Y position
-    //    const float SMOOTH_SPEED = 5.0f;
-
-    //    // Calculate interpolation factor (clamped between 0 and 1)
-    //    float t = SMOOTH_SPEED * static_cast<float>(m_timer.GetElapsedSeconds());
-    //    t = Utils::Clamp(t, 0.0f, 1.0f); // Ensure no overshooting
-
-    //    const float targetYPosition = dronePosition.y + 10.0f;
-    //    dronePosition.y = Utils::Lerp(dronePosition.y, targetYPosition, t);
-    //}
-
-    // Update previous Y for next frame
     m_previousDroneY = dronePosition.y;
-
-    // ****** To collide drone with only terrain ******
 }
 
 void Game::UpdateCameraMovement()
 {
-    // Movement speed
     float moveSpeed = 0.1f;
 
     // Calculate camera movement based on WASD input
     Vector3 cameraMovement = Vector3::Zero;
-	const bool isDroneColliding = m_Drone.IsCollidingWithTerrain();
+    const bool isDroneColliding = m_Drone.IsCollidingWithTerrain();
 
     // Forward and backward movement
     if (m_gameInputCommands.forward)
@@ -986,6 +1083,26 @@ void Game::OnWin()
     level++;
 }
 
+void Game::CreatePostProcessResources()
+{
+    // Create render texture for post-processing
+    m_PostProcessRenderTexture = new RenderTexture(
+        m_deviceResources->GetD3DDevice(),
+        800,  // Width 
+        600,  // Height
+        1,
+        2
+    );
+
+    // Initialize post-process shader
+    m_PostProcessShader.InitStandard(
+        m_deviceResources->GetD3DDevice(),
+        L"postprocess_vs.cso",
+        L"postprocess_ps.cso",
+        true
+    );
+}
+
 void Game::RestartScene()
 {
     m_Terrain.GeneratePerlinNoiseTerrain(m_deviceResources->GetD3DDevice(), 10.0f, 5);
@@ -1007,6 +1124,13 @@ void Game::OnDeviceLost()
 	m_batch.reset();
 	m_testmodel.reset();
     m_batchInputLayout.Reset();
+
+    // Clean up post-process resources
+    if (m_PostProcessRenderTexture)
+    {
+        delete m_PostProcessRenderTexture;
+        m_PostProcessRenderTexture = nullptr;
+    }
 }
 
 void Game::OnDeviceRestored()

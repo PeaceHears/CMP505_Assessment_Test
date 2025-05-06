@@ -11,7 +11,7 @@ Shader::~Shader()
 {
 }
 
-bool Shader::InitStandard(ID3D11Device * device, WCHAR * vsFilename, WCHAR * psFilename)
+bool Shader::InitStandard(ID3D11Device * device, WCHAR * vsFilename, WCHAR * psFilename, const bool isPostProcess)
 {
 	D3D11_BUFFER_DESC	matrixBufferDesc;
 	D3D11_SAMPLER_DESC	samplerDesc;
@@ -28,20 +28,40 @@ bool Shader::InitStandard(ID3D11Device * device, WCHAR * vsFilename, WCHAR * psF
 
 	// Create the vertex input layout description.
 	// This setup needs to match the VertexType stucture in the MeshClass and in the shader.
-	D3D11_INPUT_ELEMENT_DESC polygonLayout[] = {
-		{ "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D11_INPUT_PER_VERTEX_DATA, 0 },
-		{ "TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT, 0, D3D11_APPEND_ALIGNED_ELEMENT, D3D11_INPUT_PER_VERTEX_DATA, 0},
-		{ "NORMAL", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, D3D11_APPEND_ALIGNED_ELEMENT, D3D11_INPUT_PER_VERTEX_DATA, 0 },
-		{ "COLOUR", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, D3D11_APPEND_ALIGNED_ELEMENT, D3D11_INPUT_PER_VERTEX_DATA, 0 }
-	};
 
-	// Get a count of the elements in the layout.
-	unsigned int numElements;
-	numElements = sizeof(polygonLayout) / sizeof(polygonLayout[0]);
+	if (isPostProcess)
+	{
+		D3D11_INPUT_ELEMENT_DESC polygonLayout[] =
+		{
+			{ "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D11_INPUT_PER_VERTEX_DATA, 0 },
+			{ "TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT, 0, D3D11_APPEND_ALIGNED_ELEMENT, D3D11_INPUT_PER_VERTEX_DATA, 0},
+			{ "NORMAL", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, D3D11_APPEND_ALIGNED_ELEMENT, D3D11_INPUT_PER_VERTEX_DATA, 0 },
+		};
 
-	// Create the vertex input layout.
-	device->CreateInputLayout(polygonLayout, numElements, vertexShaderBuffer.data(), vertexShaderBuffer.size(), &m_layout);
-	
+		// Get a count of the elements in the layout.
+		unsigned int numElements;
+		numElements = sizeof(polygonLayout) / sizeof(polygonLayout[0]);
+
+		// Create the vertex input layout.
+		device->CreateInputLayout(polygonLayout, numElements, vertexShaderBuffer.data(), vertexShaderBuffer.size(), &m_layout);
+	}
+	else
+	{
+		D3D11_INPUT_ELEMENT_DESC polygonLayout[] =
+		{
+			{ "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D11_INPUT_PER_VERTEX_DATA, 0 },
+			{ "TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT, 0, D3D11_APPEND_ALIGNED_ELEMENT, D3D11_INPUT_PER_VERTEX_DATA, 0},
+			{ "NORMAL", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, D3D11_APPEND_ALIGNED_ELEMENT, D3D11_INPUT_PER_VERTEX_DATA, 0 },
+			{ "COLOUR", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, D3D11_APPEND_ALIGNED_ELEMENT, D3D11_INPUT_PER_VERTEX_DATA, 0 }
+		};
+
+		// Get a count of the elements in the layout.
+		unsigned int numElements;
+		numElements = sizeof(polygonLayout) / sizeof(polygonLayout[0]);
+
+		// Create the vertex input layout.
+		device->CreateInputLayout(polygonLayout, numElements, vertexShaderBuffer.data(), vertexShaderBuffer.size(), &m_layout);
+	}
 
 	//LOAD SHADER:	PIXEL
 	auto pixelShaderBuffer = DX::ReadData(psFilename);	
@@ -77,6 +97,20 @@ bool Shader::InitStandard(ID3D11Device * device, WCHAR * vsFilename, WCHAR * psF
 	// Create the constant buffer pointer so we can access the vertex shader constant buffer from within this class.
 	device->CreateBuffer(&lightBufferDesc, NULL, &m_lightBuffer);
 
+	if (isPostProcess)
+	{
+		// Setup post-process buffer
+		D3D11_BUFFER_DESC postProcessBufferDesc;
+		postProcessBufferDesc.Usage = D3D11_USAGE_DYNAMIC;
+		postProcessBufferDesc.ByteWidth = sizeof(PostProcessBufferType);
+		postProcessBufferDesc.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
+		postProcessBufferDesc.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
+		postProcessBufferDesc.MiscFlags = 0;
+		postProcessBufferDesc.StructureByteStride = 0;
+
+		device->CreateBuffer(&postProcessBufferDesc, NULL, &m_postProcessBuffer);
+	}
+
 	// Create a texture sampler state description.
 	samplerDesc.Filter = D3D11_FILTER_MIN_MAG_MIP_LINEAR;
 	samplerDesc.AddressU = D3D11_TEXTURE_ADDRESS_WRAP;
@@ -98,7 +132,45 @@ bool Shader::InitStandard(ID3D11Device * device, WCHAR * vsFilename, WCHAR * psF
 	return true;
 }
 
-bool Shader::SetShaderParameters(ID3D11DeviceContext * context, DirectX::SimpleMath::Matrix * world, DirectX::SimpleMath::Matrix * view, DirectX::SimpleMath::Matrix * projection, Light *sceneLight1, ID3D11ShaderResourceView* texture1)
+bool Shader::SetShaderParameters(ID3D11DeviceContext* context,
+	DirectX::SimpleMath::Matrix* world, DirectX::SimpleMath::Matrix* view, DirectX::SimpleMath::Matrix* projection,
+	Light* sceneLight1, ID3D11ShaderResourceView* texture1)
+{
+	D3D11_MAPPED_SUBRESOURCE mappedResource;
+	MatrixBufferType* dataPtr;
+	LightBufferType* lightPtr;
+	DirectX::SimpleMath::Matrix  tworld, tview, tproj;
+
+	// Transpose the matrices to prepare them for the shader.
+	tworld = world->Transpose();
+	tview = view->Transpose();
+	tproj = projection->Transpose();
+	context->Map(m_matrixBuffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &mappedResource);
+	dataPtr = (MatrixBufferType*)mappedResource.pData;
+	dataPtr->world = tworld;// worldMatrix;
+	dataPtr->view = tview;
+	dataPtr->projection = tproj;
+	context->Unmap(m_matrixBuffer, 0);
+	context->VSSetConstantBuffers(0, 1, &m_matrixBuffer);	//note the first variable is the mapped buffer ID.  Corresponding to what you set in the VS
+
+	context->Map(m_lightBuffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &mappedResource);
+	lightPtr = (LightBufferType*)mappedResource.pData;
+	lightPtr->ambient = sceneLight1->getAmbientColour();
+	lightPtr->diffuse = sceneLight1->getDiffuseColour();
+	lightPtr->position = sceneLight1->getPosition();
+	lightPtr->padding = 0.0f;
+	context->Unmap(m_lightBuffer, 0);
+	context->PSSetConstantBuffers(0, 1, &m_lightBuffer);	//note the first variable is the mapped buffer ID.  Corresponding to what you set in the PS
+
+	//pass the desired texture to the pixel shader.
+	context->PSSetShaderResources(0, 1, &texture1);
+
+	return false;
+}
+
+bool Shader::SetShaderParameters(ID3D11DeviceContext* context, 
+	DirectX::SimpleMath::Matrix* world, DirectX::SimpleMath::Matrix* view, DirectX::SimpleMath::Matrix* projection, 
+	Light *sceneLight1, ID3D11ShaderResourceView* texture1, int effectType, float vignetteIntensity)
 {
 	D3D11_MAPPED_SUBRESOURCE mappedResource;
 	MatrixBufferType* dataPtr;
@@ -125,6 +197,13 @@ bool Shader::SetShaderParameters(ID3D11DeviceContext * context, DirectX::SimpleM
 	lightPtr->padding = 0.0f;
 	context->Unmap(m_lightBuffer, 0);
 	context->PSSetConstantBuffers(0, 1, &m_lightBuffer);	//note the first variable is the mapped buffer ID.  Corresponding to what you set in the PS
+
+	context->Map(m_postProcessBuffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &mappedResource);
+	PostProcessBufferType* postProcessPtr = (PostProcessBufferType*)mappedResource.pData;
+	postProcessPtr->effectType = effectType;
+	postProcessPtr->vignetteIntensity = vignetteIntensity;
+	context->Unmap(m_postProcessBuffer, 0);
+	context->PSSetConstantBuffers(1, 1, &m_postProcessBuffer);
 
 	//pass the desired texture to the pixel shader.
 	context->PSSetShaderResources(0, 1, &texture1);

@@ -107,6 +107,12 @@ private:
     bool IsWin();
     void OnWin();
 
+    void RenderWithPostProcess();
+    void RenderWithoutPostProcess();
+    void CreatePostProcessResources();
+    void SetupPostProcessImGUI();
+    void RenderScene(ID3D11DeviceContext* context);
+
     // Device resources.
     std::unique_ptr<DX::DeviceResources>    m_deviceResources;
 
@@ -142,7 +148,6 @@ private:
 
 	//Shaders
 	Shader																	m_BasicShaderPair;
-    Shader																	m_Drone_Light_Shader;
 
 	//Scene. 
 	Terrain																	m_Terrain;
@@ -201,4 +206,12 @@ private:
     std::vector<FractalObstacle> m_fractalObstacles;
 
     int matchedColourCount = 0;
+
+    RenderTexture* m_PostProcessRenderTexture = nullptr;
+    Shader m_PostProcessShader;
+    int m_postProcessEffectType = 0;
+    float m_postProcessVignetteIntensity = 0.5f;
+
+    DirectX::SimpleMath::Vector3 m_cameraPosition;
+    DirectX::SimpleMath::Vector3 m_cameraRotation;
 };
