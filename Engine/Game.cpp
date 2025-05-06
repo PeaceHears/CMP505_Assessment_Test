@@ -164,38 +164,32 @@ void Game::Tick()
 
 // Updates the world.
 void Game::Update(DX::StepTimer const& timer)
-{	
+{
     //this is hacky,  i dont like this here.  
     auto device = m_deviceResources->GetD3DDevice();
 
     // Calculate mouse deltas
-    static int lastMouseX = m_gameInputCommands.mouseX;
-    static int lastMouseY = m_gameInputCommands.mouseY;
-
-    // Calculate delta
-    float mouseDeltaX = static_cast<float>(m_gameInputCommands.mouseX - lastMouseX);
-    float mouseDeltaY = static_cast<float>(m_gameInputCommands.mouseY - lastMouseY);
+    float mouseDeltaX = static_cast<float>(m_gameInputCommands.mouseX - m_lastMouseX);
+    float mouseDeltaY = static_cast<float>(m_gameInputCommands.mouseY - m_lastMouseY);
 
     // Update last mouse positions
-    lastMouseX = m_gameInputCommands.mouseX;
-    lastMouseY = m_gameInputCommands.mouseY;
+    m_lastMouseX = m_gameInputCommands.mouseX;
+    m_lastMouseY = m_gameInputCommands.mouseY;
 
     // Camera Rotation
     Vector3 rotation = m_Camera01.getRotation();
 
     // Sensitivity adjustment for rotation
-    float sensitivity = 0.1f;
+    float sensitivity = 0.2f;
 
     // Horizontal rotation (Yaw) - left/right mouse movement
     rotation.y -= mouseDeltaX * sensitivity;
 
-    //// Vertical rotation (Pitch) - up/down mouse movement
-    //rotation.x -= mouseDeltaY * sensitivity;
+    // Vertical rotation (Pitch) - up/down mouse movement
+    rotation.x -= mouseDeltaY * sensitivity;
 
-    //// Clamp vertical rotation to prevent flipping
-    //rotation.x = std::max(-89.0f, std::min(rotation.x, 89.0f));
-
-    rotation.x = -50.0f; // Set fixed pitch angle
+    // Clamp vertical rotation to prevent camera flipping
+    rotation.x = Utils::Clamp(rotation.x, -89.0f, 89.0f);
 
     // Set the new rotation for the camera
     m_Camera01.setRotation(rotation);
@@ -755,60 +749,89 @@ void Game::UpdateDroneMovement()
 {
     // Keep drone at a fixed offset from camera
     Vector3 cameraPosition = m_Camera01.getPosition();
-    Vector3 droneOffset = m_Camera01.GetForwardVector() * 1.0f + m_Camera01.GetUpVector() * -0.5f;
-    Vector3 dronePosition = cameraPosition+ droneOffset;
 
+    // Define a fixed offset relative to camera
+    Vector3 droneOffset = Vector3(0, -0.5f, -1.0f);
+
+    // Create drone position based on camera
+    Vector3 dronePosition = cameraPosition + droneOffset;
+
+    // Perform terrain collision check
     CheckObjectCollisionWithTerrain(m_localDroneX, m_localDroneZ, dronePosition, m_Drone, true);
 
+    // Update drone position and bounding sphere
+    m_Drone.SetPosition(dronePosition);
     m_Drone.UpdateBoundingSphere();
 
+    // Check for collisions
     CheckDroneCollisions();
-
-    m_previousDroneY = dronePosition.y;
 }
 
 void Game::UpdateCameraMovement()
 {
+    // Movement speed
     float moveSpeed = 0.1f;
+
+    // Check if drone is colliding with terrain
+    const bool isDroneColliding = m_Drone.IsCollidingWithTerrain();
 
     // Calculate camera movement based on WASD input
     Vector3 cameraMovement = Vector3::Zero;
-    const bool isDroneColliding = m_Drone.IsCollidingWithTerrain();
+
+    // Get camera's forward and right vectors
+    Vector3 forwardVector = m_Camera01.GetForwardVector();
+    Vector3 rightVector = m_Camera01.GetRightVector();
+
+    // Flatten forward and right vectors to prevent vertical movement from input
+    forwardVector.y = 0.0f;
+    rightVector.y = 0.0f;
+    forwardVector.Normalize();
+    rightVector.Normalize();
 
     // Forward and backward movement
     if (m_gameInputCommands.forward)
     {
-        cameraMovement += m_Camera01.GetForwardVector() * moveSpeed;
+        cameraMovement += forwardVector * moveSpeed;
     }
     if (m_gameInputCommands.back)
     {
-        cameraMovement -= m_Camera01.GetForwardVector() * moveSpeed;
+        cameraMovement -= forwardVector * moveSpeed;
     }
 
     // Strafe left and right movement
     if (m_gameInputCommands.left)
     {
-        cameraMovement -= m_Camera01.GetRightVector() * moveSpeed;
+        cameraMovement -= rightVector * moveSpeed;
     }
     if (m_gameInputCommands.right)
     {
-        cameraMovement += m_Camera01.GetRightVector() * moveSpeed;
+        cameraMovement += rightVector * moveSpeed;
     }
 
-    // Vertical movement (optional)
+    // Vertical movement with terrain collision check
     if (m_gameInputCommands.up)
     {
-        cameraMovement += Vector3::UnitY * moveSpeed; // Straight up
+        cameraMovement.y += moveSpeed;
     }
-    if (m_gameInputCommands.down && !isDroneColliding)
+    if (m_gameInputCommands.down)
     {
-        cameraMovement -= Vector3::UnitY * moveSpeed; // Straight down
+        // Only allow downward movement if drone is NOT colliding with terrain
+        if (!isDroneColliding)
+        {
+            cameraMovement.y -= moveSpeed;
+        }
     }
 
     // Update camera position
     Vector3 cameraPosition = m_Camera01.getPosition();
     cameraPosition += cameraMovement;
     m_Camera01.setPosition(cameraPosition);
+
+    // Update drone position relative to camera
+    Vector3 dronePosition = cameraPosition +
+        Vector3(0, -0.5f, -1.0f);  // Fixed offset
+
+    m_Drone.SetPosition(dronePosition);
 }
 
 void Game::ChangeTargetRegion()
