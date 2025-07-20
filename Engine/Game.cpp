@@ -506,7 +506,6 @@ void Game::CreateDeviceDependentResources()
     m_Terrain.SetTranslation(m_terrainTranslation);
 
 	//setup our test model
-    m_Sphere.InitializeSphere(device);
     m_Drone.InitializeModel(device,"drone.obj", true);
     m_ObstacleModel.InitializeBox(device, 0.2f, 1.0f, 0.2f);
 
