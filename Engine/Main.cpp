@@ -7,6 +7,9 @@
 #endif
 using namespace DirectX;
 
+// Forward declaration of the window procedure
+LRESULT CALLBACK WndProc(HWND, UINT, WPARAM, LPARAM);
+
 namespace
 {
     std::shared_ptr<Game> g_game;
@@ -14,13 +17,45 @@ namespace
 #ifdef DXTK_AUDIO
     HDEVNOTIFY g_hNewAudio = nullptr;
 #endif
+
+    HWND CreateGameWindow(HINSTANCE hInstance, int nCmdShow, int width, int height)
+    {
+        WNDCLASSEXW wcex = {};
+        wcex.cbSize = sizeof(WNDCLASSEXW);
+        wcex.style = CS_HREDRAW | CS_VREDRAW;
+        wcex.lpfnWndProc = WndProc;
+        wcex.hInstance = hInstance;
+        wcex.hIcon = LoadIconW(hInstance, L"IDI_ICON");
+        wcex.hCursor = LoadCursorW(nullptr, IDC_ARROW);
+        wcex.hbrBackground = reinterpret_cast<HBRUSH>(COLOR_WINDOW + 1);
+        wcex.lpszClassName = L"DirectXTKSimpleSampleWindowClass";
+        wcex.hIconSm = LoadIconW(wcex.hInstance, L"IDI_ICON");
+
+        if (!RegisterClassExW(&wcex))
+        {
+            return nullptr;
+        }
+
+        RECT rc = { 0, 0, static_cast<LONG>(width), static_cast<LONG>(height) };
+        AdjustWindowRect(&rc, WS_OVERLAPPEDWINDOW, FALSE);
+
+        HWND hwnd = CreateWindowExW(0, L"DirectXTKSimpleSampleWindowClass", L"DirectX Game", WS_OVERLAPPEDWINDOW,
+            CW_USEDEFAULT, CW_USEDEFAULT, rc.right - rc.left, rc.bottom - rc.top, nullptr, nullptr, hInstance, nullptr);
+
+        if (!hwnd)
+        {
+            return nullptr;
+        }
+
+        ShowWindow(hwnd, nCmdShow);
+        SetWindowLongPtr(hwnd, GWLP_USERDATA, reinterpret_cast<LONG_PTR>(g_game.get()));
+
+        return hwnd;
+    }
 };
 
 //GLOBALS
 static bool s_fullscreen = false;	//Fullscreen mode on or off. 
-
-//PRE DECLARATION OF CALLBACK. 
-LRESULT CALLBACK WndProc(HWND, UINT, WPARAM, LPARAM);
 
 // Indicates to hybrid graphics systems to prefer the discrete part by default
 extern "C"
@@ -32,7 +67,6 @@ extern "C"
 // Entry point
 int WINAPI wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, _In_ LPWSTR lpCmdLine, _In_ int nCmdShow)
 {
-	//macros to tell the compiler the following parameters are unused and to optimise accordingly
     UNREFERENCED_PARAMETER(hPrevInstance);
     UNREFERENCED_PARAMETER(lpCmdLine);
 
@@ -45,59 +79,17 @@ int WINAPI wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, 
 
     g_game = std::make_shared<Game>();
 
-    // Register class and create window
+    // Create and initialize the window
+    int width, height;
+    g_game->GetDefaultSize(width, height);
+
+    HWND hwnd = CreateGameWindow(hInstance, nCmdShow, width, height);
+    if (!hwnd)
     {
-        // Register Windows Class information. 
-        WNDCLASSEXW wcex;
-        wcex.cbSize = sizeof(WNDCLASSEXW);
-        wcex.style = CS_HREDRAW | CS_VREDRAW;
-        wcex.lpfnWndProc = WndProc;
-        wcex.cbClsExtra = 0;
-        wcex.cbWndExtra = 0;
-        wcex.hInstance = hInstance;
-        wcex.hIcon = LoadIconW(hInstance, L"IDI_ICON");
-        wcex.hCursor = LoadCursorW(nullptr, IDC_ARROW);
-        wcex.hbrBackground = (HBRUSH) (COLOR_WINDOW + 1);
-        wcex.lpszMenuName = nullptr;
-        wcex.lpszClassName = L"DirectXTKSimpleSampleWindowClass";
-        wcex.hIconSm = LoadIconW(wcex.hInstance, L"IDI_ICON");
-        if (!RegisterClassExW(&wcex))
-            return 1;
-
-        // Create window
-        int w, h;
-        g_game->GetDefaultSize(w, h);
-
-        RECT rc = { 0, 0, static_cast<LONG>(w), static_cast<LONG>(h) };
-
-        AdjustWindowRect(&rc, WS_OVERLAPPEDWINDOW, FALSE);
-
-        HWND hwnd = CreateWindowExW(0, L"DirectXTKSimpleSampleWindowClass", L"Direct X Game Dev Template", WS_OVERLAPPEDWINDOW,
-            CW_USEDEFAULT, CW_USEDEFAULT, rc.right - rc.left, rc.bottom - rc.top, nullptr, nullptr, hInstance,
-            nullptr);
-
-        if (!hwnd)
-            return 1;
-		
-        ShowWindow(hwnd, nCmdShow);
-
-        SetWindowLongPtr(hwnd, GWLP_USERDATA, reinterpret_cast<LONG_PTR>(g_game.get()) );
-
-        GetClientRect(hwnd, &rc);
-
-        g_game->Initialize(hwnd, rc.right - rc.left, rc.bottom - rc.top);
-
-		//lastly check if initial fullscreen mode is set. 
-		if (s_fullscreen)
-		{
-			SetWindowLongPtr(hwnd, GWL_STYLE, 0);
-			SetWindowLongPtr(hwnd, GWL_EXSTYLE, WS_EX_TOPMOST);
-
-			SetWindowPos(hwnd, HWND_TOP, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER | SWP_FRAMECHANGED);
-
-			ShowWindow(hwnd, SW_SHOWMAXIMIZED);
-		}
+        return 1;
     }
+
+    g_game->Initialize(hwnd, width, height);
 
     // Main message loop
     MSG msg = {};
@@ -114,15 +106,10 @@ int WINAPI wWinMain(_In_ HINSTANCE hInstance, _In_opt_ HINSTANCE hPrevInstance, 
         }
     }
 
-//	ImGui_ImplDX11_Shutdown();
-//	ImGui_ImplWin32_Shutdown();
-//	ImGui::DestroyContext();
-
     g_game.reset();
-
     CoUninitialize();
 
-    return (int) msg.wParam;
+    return static_cast<int>(msg.wParam);
 }
 
 extern LRESULT ImGui_ImplWin32_WndProcHandler(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
