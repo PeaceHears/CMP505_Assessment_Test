@@ -5,11 +5,22 @@
 
 #pragma once
 
-#include <WinSDKVer.h>
+// C++ Standard Library
+#include <algorithm>
+#include <exception>
+#include <memory>
+#include <stdexcept>
+#include <vector>
+#include <string>
+#include <stack>
+#include <map>
+
+// Windows and DirectX
+#include <winsdkver.h>
 #ifndef _WIN32_WINNT
 #define _WIN32_WINNT 0x0600
 #endif
-#include <SDKDDKVer.h>
+#include <sdkddkver.h>
 
 // Use the C++ standard templated min/max
 #define NOMINMAX
@@ -32,22 +43,11 @@
 #include <windows.h>
 
 #include <wrl/client.h>
-
 #include <d3d11_1.h>
 #include <DirectXMath.h>
 #include <DirectXColors.h>
 
-#include <algorithm>
-#include <exception>
-#include <memory>
-#include <stdexcept>
-
-#include <stdio.h>
-
-#ifdef DXTK_AUDIO
-#include "Audio.h"
-#endif
-
+// DirectX Tool Kit
 #include "CommonStates.h"
 #include "DDSTextureLoader.h"
 #include "Effects.h"
@@ -61,10 +61,18 @@
 #include "SpriteBatch.h"
 #include "SpriteFont.h"
 #include "VertexTypes.h"
-#include "ReadData.h"
+
+// Third-party
 #include "imgui.h"
 #include "imgui_impl_win32.h"
 #include "imgui_impl_dx11.h"
+
+// Project-specific
+#include "ReadData.h"
+
+#ifdef DXTK_AUDIO
+#include "Audio.h"
+#endif
 
 namespace DX
 {
