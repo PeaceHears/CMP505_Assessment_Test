@@ -63,16 +63,6 @@ void Game::Initialize(HWND window, int width, int height)
 	ImGui_ImplWin32_Init(window);		//tie to our window
 	ImGui_ImplDX11_Init(m_deviceResources->GetD3DDevice(), m_deviceResources->GetD3DDeviceContext());	//tie to directx
 
-	m_fullscreenRect.left = 0;
-	m_fullscreenRect.top = 0;
-	m_fullscreenRect.right = 800;
-	m_fullscreenRect.bottom = 600;
-
-	m_CameraViewRect.left = 500;
-	m_CameraViewRect.top = 0;
-	m_CameraViewRect.right = 800;
-	m_CameraViewRect.bottom = 240;
-
 	//setup light
 	m_Light.setAmbientColour(0.3f, 0.3f, 0.3f, 1.0f);
 	m_Light.setDiffuseColour(1.0f, 1.0f, 1.0f, 1.0f);
@@ -468,17 +458,13 @@ void Game::OnWindowSizeChanged(int width, int height)
     CreateWindowSizeDependentResources();
 
     // Recreate post-process render texture with new dimensions
-    if (m_PostProcessRenderTexture)
-    {
-        delete m_PostProcessRenderTexture;
-        m_PostProcessRenderTexture = new RenderTexture(
-            m_deviceResources->GetD3DDevice(),
-            width,
-            height,
-            0.1f,
-            100.0f
-        );
-    }
+    m_PostProcessRenderTexture = std::make_unique<RenderTexture>(
+        m_deviceResources->GetD3DDevice(),
+        width,
+        height,
+        0.1f,
+        100.0f
+    );
 }
 
 #ifdef DXTK_AUDIO
@@ -532,9 +518,6 @@ void Game::CreateDeviceDependentResources()
 	//load Textures
 	CreateDDSTextureFromFile(device, L"seafloor.dds",		nullptr,	m_texture1.ReleaseAndGetAddressOf());
 	CreateDDSTextureFromFile(device, L"EvilDrone_Diff.dds", nullptr,	m_texture2.ReleaseAndGetAddressOf());
-
-	//Initialise Render to texture
-	m_FirstRenderPass = new RenderTexture(device, 800, 600, 1, 2);	//for our rendering, We dont use the last two properties. but.  they cant be zero and they cant be the same. 
 }
 
 // Allocate all memory resources that change on a window SizeChanged event.
@@ -996,16 +979,10 @@ void Game::CreateObjectsVector(int count)
         const float randomScale = Utils::GetRandomFloat(0.1f, 0.5f);
         const auto randomPosition = m_Terrain.GetRandomPosition();
 
-        //m_Sphere.SetPosition(randomPosition);
-        //m_Sphere.SetScale(Vector3(randomScale, randomScale, randomScale));
-
-        //SimpleMath::Matrix sphereWorldMatrix = m_Sphere.GetWorldMatrix();
-
-        //objectAttributes.worldMatrix = sphereWorldMatrix;
-
         const auto randomVoronoiRegionColour = m_Terrain.GetRandomVoronoiRegionColour();
 
-        auto* model = new ModelClass();
+        auto model = std::make_unique<ModelClass>();
+
         model->InitializeModel(m_deviceResources->GetD3DDevice(), "drone.obj", true);
         model->ChangeColour(m_deviceResources->GetD3DDevice(),
             randomVoronoiRegionColour,
@@ -1015,13 +992,13 @@ void Game::CreateObjectsVector(int count)
         model->SetScale(Vector3(randomScale, randomScale, randomScale));
         model->UpdateBoundingSphere();
 
-        m_objects.push_back(model);
+        m_objects.push_back(std::move(model));
     }
 }
 
 void Game::RenderObjectsAtRandomLocations(ID3D11DeviceContext* context)
 {
-    for each (auto& object in m_objects)
+    for each (const auto& object in m_objects)
     {
         float localPositionX = 0.0f;
         float localPositionY = 0.0f;
@@ -1150,7 +1127,7 @@ void Game::OnWin()
 void Game::CreatePostProcessResources()
 {
     // Create render texture for post-processing
-    m_PostProcessRenderTexture = new RenderTexture(
+    m_PostProcessRenderTexture = std::make_unique<RenderTexture>(
         m_deviceResources->GetD3DDevice(),
         800,  // Width 
         600,  // Height
@@ -1186,15 +1163,7 @@ void Game::OnDeviceLost()
     m_sprites.reset();
     m_font.reset();
 	m_batch.reset();
-	m_testmodel.reset();
     m_batchInputLayout.Reset();
-
-    // Clean up post-process resources
-    if (m_PostProcessRenderTexture)
-    {
-        delete m_PostProcessRenderTexture;
-        m_PostProcessRenderTexture = nullptr;
-    }
 }
 
 void Game::OnDeviceRestored()
