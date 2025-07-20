@@ -135,6 +135,14 @@ void Game::Tick()
         Update(m_timer);
     });
 
+    // ImGui frame setup should happen right before rendering the UI
+    ImGui_ImplDX11_NewFrame();
+    ImGui_ImplWin32_NewFrame();
+    ImGui::NewFrame();
+
+    // Set up the ImGui windows
+    SetupImGUI();
+
 	//Render all game content. 
     Render();
 
@@ -155,51 +163,16 @@ void Game::Tick()
 // Updates the world.
 void Game::Update(DX::StepTimer const& timer)
 {
-    //this is hacky,  i dont like this here.  
-    auto device = m_deviceResources->GetD3DDevice();
-
-    // Calculate mouse deltas
-    float mouseDeltaX = static_cast<float>(m_gameInputCommands.mouseX - m_lastMouseX);
-    float mouseDeltaY = static_cast<float>(m_gameInputCommands.mouseY - m_lastMouseY);
-
-    // Update last mouse positions
-    m_lastMouseX = m_gameInputCommands.mouseX;
-    m_lastMouseY = m_gameInputCommands.mouseY;
-
-    // Camera Rotation
-    Vector3 rotation = m_Camera01.getRotation();
-
-    // Sensitivity adjustment for rotation
-    float sensitivity = 0.2f;
-
-    // Horizontal rotation (Yaw) - left/right mouse movement
-    rotation.y -= mouseDeltaX * sensitivity;
-
-    // Vertical rotation (Pitch) - up/down mouse movement
-    rotation.x -= mouseDeltaY * sensitivity;
-
-    // Clamp vertical rotation to prevent camera flipping
-    rotation.x = Utils::Clamp(rotation.x, -89.0f, 89.0f);
-
-    if (!isMouseHoveringOverImGui)
-    {
-        // Set the new rotation for the camera
-        m_Camera01.setRotation(rotation);
-    }
-
     UpdateCameraMovement();
     UpdateDroneMovement();
 
+    CheckDroneCollisions();
     CheckObjectColoursWithRegionColours();
 
 	m_Camera01.Update();	//camera update.
 	m_Terrain.Update();		//terrain update.  doesnt do anything at the moment. 
 
 	m_view = m_Camera01.getCameraMatrix();
-	m_world = Matrix::Identity;
-
-	/*create our UI*/
-    SetupImGUI();
 
     m_gameTimer.UpdateRemainingTime();
 
@@ -544,10 +517,6 @@ void Game::CreateWindowSizeDependentResources()
 
 void Game::SetupImGUI()
 {
-	ImGui_ImplDX11_NewFrame();
-	ImGui_ImplWin32_NewFrame();
-	ImGui::NewFrame();
-
 	ImGui::Begin("Procedural Terrain Generation");
 
     if (ImGui::IsWindowHovered())
@@ -785,15 +754,41 @@ void Game::UpdateDroneMovement()
     // Update drone position and bounding sphere
     m_Drone.SetPosition(dronePosition);
     m_Drone.UpdateBoundingSphere();
-
-    // Check for collisions
-    CheckDroneCollisions();
 }
 
 void Game::UpdateCameraMovement()
 {
+    // Calculate mouse deltas
+    const float mouseDeltaX = static_cast<float>(m_gameInputCommands.mouseX - m_lastMouseX);
+    const float mouseDeltaY = static_cast<float>(m_gameInputCommands.mouseY - m_lastMouseY);
+
+    // Update last mouse positions
+    m_lastMouseX = m_gameInputCommands.mouseX;
+    m_lastMouseY = m_gameInputCommands.mouseY;
+
+    // Camera Rotation
+    Vector3 rotation = m_Camera01.getRotation();
+
+    // Sensitivity adjustment for rotation
+    const float sensitivity = 0.2f;
+
+    // Horizontal rotation (Yaw) - left/right mouse movement
+    rotation.y -= mouseDeltaX * sensitivity;
+
+    // Vertical rotation (Pitch) - up/down mouse movement
+    rotation.x -= mouseDeltaY * sensitivity;
+
+    // Clamp vertical rotation to prevent camera flipping
+    rotation.x = Utils::Clamp(rotation.x, -89.0f, 89.0f);
+
+    if (!isMouseHoveringOverImGui)
+    {
+        // Set the new rotation for the camera
+        m_Camera01.setRotation(rotation);
+    }
+
     // Movement speed
-    float moveSpeed = 0.1f;
+    const float moveSpeed = 0.1f;
 
     // Check if drone is colliding with terrain
     const bool isDroneColliding = m_Drone.IsCollidingWithTerrain();
