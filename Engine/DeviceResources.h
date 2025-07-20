@@ -20,6 +20,15 @@ namespace DX
     class DeviceResources
     {
     public:
+
+        // To make it non-copyable and non-movable
+        DeviceResources(const DeviceResources&) = delete;
+        DeviceResources& operator=(const DeviceResources&) = delete;
+
+        DeviceResources(DeviceResources&&) = delete;
+        DeviceResources& operator=(DeviceResources&&) = delete;
+
+
         DeviceResources(DXGI_FORMAT backBufferFormat = DXGI_FORMAT_B8G8R8A8_UNORM,
                         DXGI_FORMAT depthBufferFormat = DXGI_FORMAT_D24_UNORM_S8_UINT,
                         UINT backBufferCount = 2,
@@ -30,7 +39,7 @@ namespace DX
         void SetWindow(HWND window, int width, int height);
         bool WindowSizeChanged(int width, int height);
         void HandleDeviceLost();
-        void RegisterDeviceNotify(IDeviceNotify* deviceNotify) { m_deviceNotify = deviceNotify; }
+        void RegisterDeviceNotify(std::weak_ptr<IDeviceNotify> deviceNotify) { m_deviceNotify = deviceNotify; }
         void Present();
 
         // Device Accessors.
@@ -108,7 +117,7 @@ namespace DX
         D3D_FEATURE_LEVEL                               m_d3dFeatureLevel;
         RECT                                            m_outputSize;
 
-        // The IDeviceNotify can be held directly as it owns the DeviceResources.
-        IDeviceNotify*                                  m_deviceNotify;
+        // The IDeviceNotify is a non-owning pointer.
+        std::weak_ptr<IDeviceNotify>                    m_deviceNotify;
     };
 }

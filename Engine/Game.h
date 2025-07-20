@@ -20,7 +20,7 @@ class FractalObstacle;
 
 // A basic game implementation that creates a D3D11 device and
 // provides a game loop.
-class Game final : public DX::IDeviceNotify
+class Game final : public DX::IDeviceNotify, public std::enable_shared_from_this<Game>
 {
 public:
 

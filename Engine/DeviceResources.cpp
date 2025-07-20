@@ -48,8 +48,7 @@ DeviceResources::DeviceResources(
         m_d3dMinFeatureLevel(minFeatureLevel),
         m_window(nullptr),
         m_d3dFeatureLevel(D3D_FEATURE_LEVEL_9_1),
-        m_outputSize{0, 0, 1, 1},
-        m_deviceNotify(nullptr)
+        m_outputSize{0, 0, 1, 1}
 {
 }
 
@@ -412,9 +411,9 @@ bool DeviceResources::WindowSizeChanged(int width, int height)
 // Recreate all device resources and set them back to the current state.
 void DeviceResources::HandleDeviceLost()
 {
-    if (m_deviceNotify)
+    if (auto notify = m_deviceNotify.lock())
     {
-        m_deviceNotify->OnDeviceLost();
+        notify->OnDeviceLost();
     }
 
     m_d3dDepthStencilView.Reset();
@@ -441,9 +440,9 @@ void DeviceResources::HandleDeviceLost()
     CreateDeviceResources();
     CreateWindowSizeDependentResources();
 
-    if (m_deviceNotify)
+    if (auto notify = m_deviceNotify.lock())
     {
-        m_deviceNotify->OnDeviceRestored();
+        notify->OnDeviceRestored();
     }
 }
 

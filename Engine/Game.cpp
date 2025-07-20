@@ -23,7 +23,6 @@ using Microsoft::WRL::ComPtr;
 Game::Game() noexcept(false)
 {
     m_deviceResources = std::make_unique<DX::DeviceResources>();
-    m_deviceResources->RegisterDeviceNotify(this);
 
     m_lastMouseX = 0;
     m_lastMouseY = 0;
@@ -42,6 +41,7 @@ Game::~Game()
 // Initialize the Direct3D resources required to run.
 void Game::Initialize(HWND window, int width, int height)
 {
+    m_deviceResources->RegisterDeviceNotify(shared_from_this());
 
 	m_input.Initialise(window);
 
