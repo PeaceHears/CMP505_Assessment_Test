@@ -11,11 +11,11 @@
     <Filter Include="Rendering">
       <UniqueIdentifier>{40238b9b-2d65-45a3-9dff-1217399e25f8}</UniqueIdentifier>
     </Filter>
-    <Filter Include="Imgui">
-      <UniqueIdentifier>{87f4acdb-8786-4ef7-8e4a-3eef1607d089}</UniqueIdentifier>
-    </Filter>
     <Filter Include="LSystems">
       <UniqueIdentifier>{ad246a00-fc26-4186-bd91-1e2f6ad4ba3a}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="LSystems\Imgui">
+      <UniqueIdentifier>{87f4acdb-8786-4ef7-8e4a-3eef1607d089}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
   <ItemGroup>
@@ -48,28 +48,28 @@
       <Filter>Rendering</Filter>
     </ClInclude>
     <ClInclude Include="imconfig.h">
-      <Filter>Imgui</Filter>
+      <Filter>LSystems\Imgui</Filter>
     </ClInclude>
     <ClInclude Include="imgui.h">
-      <Filter>Imgui</Filter>
+      <Filter>LSystems\Imgui</Filter>
     </ClInclude>
     <ClInclude Include="imgui_internal.h">
-      <Filter>Imgui</Filter>
+      <Filter>LSystems\Imgui</Filter>
     </ClInclude>
     <ClInclude Include="imstb_rectpack.h">
-      <Filter>Imgui</Filter>
+      <Filter>LSystems\Imgui</Filter>
     </ClInclude>
     <ClInclude Include="imstb_textedit.h">
-      <Filter>Imgui</Filter>
+      <Filter>LSystems\Imgui</Filter>
     </ClInclude>
     <ClInclude Include="imstb_truetype.h">
-      <Filter>Imgui</Filter>
+      <Filter>LSystems\Imgui</Filter>
     </ClInclude>
     <ClInclude Include="imgui_impl_dx11.h">
-      <Filter>Imgui</Filter>
+      <Filter>LSystems\Imgui</Filter>
     </ClInclude>
     <ClInclude Include="imgui_impl_win32.h">
-      <Filter>Imgui</Filter>
+      <Filter>LSystems\Imgui</Filter>
     </ClInclude>
     <ClInclude Include="GameTimer.h" />
     <ClInclude Include="Utils.h" />
@@ -108,22 +108,22 @@
       <Filter>Rendering</Filter>
     </ClCompile>
     <ClCompile Include="imgui.cpp">
-      <Filter>Imgui</Filter>
+      <Filter>LSystems\Imgui</Filter>
     </ClCompile>
     <ClCompile Include="imgui_demo.cpp">
-      <Filter>Imgui</Filter>
+      <Filter>LSystems\Imgui</Filter>
     </ClCompile>
     <ClCompile Include="imgui_draw.cpp">
-      <Filter>Imgui</Filter>
+      <Filter>LSystems\Imgui</Filter>
     </ClCompile>
     <ClCompile Include="imgui_widgets.cpp">
-      <Filter>Imgui</Filter>
+      <Filter>LSystems\Imgui</Filter>
     </ClCompile>
     <ClCompile Include="imgui_impl_dx11.cpp">
-      <Filter>Imgui</Filter>
+      <Filter>LSystems\Imgui</Filter>
     </ClCompile>
     <ClCompile Include="imgui_impl_win32.cpp">
-      <Filter>Imgui</Filter>
+      <Filter>LSystems\Imgui</Filter>
     </ClCompile>
     <ClCompile Include="GameTimer.cpp" />
     <ClCompile Include="Utils.cpp" />

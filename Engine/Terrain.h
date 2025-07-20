@@ -71,6 +71,10 @@ public:
 
 	const DirectX::SimpleMath::Vector3& GetRandomPosition() const;
 
+	bool SmoothTerrain(ID3D11Device* device, float smoothFactor);
+	bool GenerateFaultTerrain(ID3D11Device* device);
+	bool GenerateParticleDepositionTerrain(ID3D11Device* device);
+
 private:
 	bool CalculateNormals();
 	void Shutdown();
@@ -116,5 +120,9 @@ private:
 	std::vector<VoronoiRegion> m_voronoiRegions;
 	std::map<Enums::COLOUR, DirectX::SimpleMath::Vector4> m_voronoiRegionColours;
 	std::vector<Enums::COLOUR> m_randomVoronoiRegionColours;
+
+	// Smoothing-related members
+	std::vector<float> m_smoothedHeights;
+	float m_smoothingIntensity = 0.5f;
 };
 

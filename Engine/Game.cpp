@@ -104,8 +104,8 @@ void Game::Initialize(HWND window, int width, int height)
 
     CreateObjectsVector(10);
 
-    //InitializeRegionRules();
-    //GenerateFractalObstacles();
+    InitializeRegionRules();
+    GenerateFractalObstacles();
 	
 #ifdef DXTK_AUDIO
     // Create DirectXTK for Audio objects
@@ -191,8 +191,11 @@ void Game::Update(DX::StepTimer const& timer)
     // Clamp vertical rotation to prevent camera flipping
     rotation.x = Utils::Clamp(rotation.x, -89.0f, 89.0f);
 
-    // Set the new rotation for the camera
-    m_Camera01.setRotation(rotation);
+    if (!isMouseHoveringOverImGui)
+    {
+        // Set the new rotation for the camera
+        m_Camera01.setRotation(rotation);
+    }
 
     UpdateCameraMovement();
     UpdateDroneMovement();
@@ -302,7 +305,7 @@ void Game::RenderWithPostProcess()
     context->OMSetRenderTargets(1, &backBufferRTV, m_deviceResources->GetDepthStencilView());
 
     // Clear the back buffer
-    float clearColorBackBuffer[4] = { 0.5f, 0.5f, 0.5f, 1.0f };
+    float clearColorBackBuffer[4] = { 0.0f, 0.0f, 0.0f, 1.0f };
     context->ClearRenderTargetView(backBufferRTV, clearColorBackBuffer);
 
     // Apply post-processing effect
@@ -384,7 +387,7 @@ void Game::RenderScene(ID3D11DeviceContext* context)
 
     RenderObjectsAtRandomLocations(context);
 
-    //RenderFractalObstacles(context);
+    RenderFractalObstacles(context);
 
 }
 
@@ -412,7 +415,7 @@ void Game::Clear()
     auto renderTarget = m_deviceResources->GetRenderTargetView();
     auto depthStencil = m_deviceResources->GetDepthStencilView();
 
-    context->ClearRenderTargetView(renderTarget, Colors::CornflowerBlue);
+    context->ClearRenderTargetView(renderTarget, Colors::Black);
     context->ClearDepthStencilView(depthStencil, D3D11_CLEAR_DEPTH | D3D11_CLEAR_STENCIL, 1.0f, 0);
     context->OMSetRenderTargets(1, &renderTarget, depthStencil);
 
@@ -565,6 +568,15 @@ void Game::SetupImGUI()
 
 	ImGui::Begin("Procedural Terrain Generation");
 
+    if (ImGui::IsWindowHovered())
+    {
+        isMouseHoveringOverImGui = true;
+    }
+    else
+    {
+        isMouseHoveringOverImGui = false;
+    }
+
     const auto& cameraPosition = m_Camera01.getPosition();
     ImGui::Text("Camera X Position: %.2f", cameraPosition.x);
     ImGui::Text("Camera Y Position: %.2f", cameraPosition.y);
@@ -660,6 +672,35 @@ void Game::SetupImGUI()
 
         m_Terrain.SetRandomSeed(randomSeed);
         m_Terrain.GenerateRandomHeightMap(m_deviceResources->GetD3DDevice());
+    }
+
+    ImGui::Dummy(ImVec2(0.0f, 10.0f));
+
+    static int manualSeed = 0;
+    ImGui::InputInt("Random Seed", &manualSeed);
+    if (ImGui::Button("Set Custom Seed"))
+    {
+        m_Terrain.SetRandomSeed(static_cast<unsigned int>(manualSeed));
+    }
+
+    // Smoothing controls
+    static float smoothingIntensity = 0.5f;
+    ImGui::SliderFloat("Smoothing Intensity", &smoothingIntensity, 0.0f, 1.0f);
+    ImGui::Text("Press 'S' to smooth terrain");
+
+    if (ImGui::Button("Smooth Terrain"))
+    {
+        m_Terrain.SmoothTerrain(m_deviceResources->GetD3DDevice(), smoothingIntensity);
+    }
+
+    if (ImGui::Button("Fault Terrain"))
+    {
+        m_Terrain.GenerateFaultTerrain(m_deviceResources->GetD3DDevice());
+    }
+
+    if (ImGui::Button("Particle Deposition Terrain"))
+    {
+        m_Terrain.GenerateParticleDepositionTerrain(m_deviceResources->GetD3DDevice());
     }
 
     ImGui::Dummy(ImVec2(0.0f, 10.0f));

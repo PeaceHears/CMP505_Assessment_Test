@@ -492,6 +492,214 @@ bool Terrain::GenerateRandomHeightMap(ID3D11Device* device)
 	return result;
 }
 
+bool Terrain::SmoothTerrain(ID3D11Device* device, float smoothFactor)
+{
+	// Resize the smoothed heights vector if needed
+	m_smoothedHeights.resize(m_terrainWidth * m_terrainHeight);
+
+	// Create a copy of current heights for smooth calculation
+	for (int j = 0; j < m_terrainHeight; j++)
+	{
+		for (int i = 0; i < m_terrainWidth; i++)
+		{
+			int index = (m_terrainHeight * j) + i;
+			m_smoothedHeights[index] = m_heightMap[index].y;
+		}
+	}
+
+	// Smoothing algorithm (average neighboring heights)
+	for (int j = 1; j < m_terrainHeight - 1; j++)
+	{
+		for (int i = 1; i < m_terrainWidth - 1; i++)
+		{
+			int index = (m_terrainHeight * j) + i;
+
+			// Calculate average of neighboring heights
+			float neighborHeights[8] = {
+				m_heightMap[(m_terrainHeight * (j - 1)) + (i - 1)].y,  // top-left
+				m_heightMap[(m_terrainHeight * (j - 1)) + i].y,      // top
+				m_heightMap[(m_terrainHeight * (j - 1)) + (i + 1)].y, // top-right
+				m_heightMap[(m_terrainHeight * j) + (i - 1)].y,      // left
+				m_heightMap[(m_terrainHeight * j) + (i + 1)].y,      // right
+				m_heightMap[(m_terrainHeight * (j + 1)) + (i - 1)].y, // bottom-left
+				m_heightMap[(m_terrainHeight * (j + 1)) + i].y,      // bottom
+				m_heightMap[(m_terrainHeight * (j + 1)) + (i + 1)].y  // bottom-right
+			};
+
+			// Calculate average
+			float avgHeight = 0.0f;
+			for (float height : neighborHeights)
+			{
+				avgHeight += height;
+			}
+			avgHeight /= 8.0f;
+
+			// Interpolate between current height and average
+			m_smoothedHeights[index] =
+				m_heightMap[index].y * (1.0f - smoothFactor) +
+				avgHeight * smoothFactor;
+		}
+	}
+
+	// Update height map with smoothed heights
+	for (int j = 0; j < m_terrainHeight; j++)
+	{
+		for (int i = 0; i < m_terrainWidth; i++)
+		{
+			int index = (m_terrainHeight * j) + i;
+			m_heightMap[index].y = m_smoothedHeights[index];
+		}
+	}
+
+	// Recalculate normals and buffers
+	bool result = CalculateNormals();
+	if (!result)
+	{
+		return false;
+	}
+
+	result = InitializeBuffers(device);
+	if (!result)
+	{
+		return false;
+	}
+
+	return true;
+}
+
+bool Terrain::GenerateFaultTerrain(ID3D11Device* device)
+{
+	// Number of fault iterations
+	int numIterations = 1000;  // Adjust for more complex terrain
+
+	// Random number generator setup
+	std::random_device rd;
+	std::mt19937 gen(rd());
+	std::uniform_real_distribution<> disX(0, m_terrainWidth);
+	std::uniform_real_distribution<> disZ(0, m_terrainHeight);
+
+	for (int iteration = 0; iteration < numIterations; iteration++)
+	{
+		// Generate random fault line
+		float pointX1 = disX(gen);
+		float pointZ1 = disZ(gen);
+		float pointX2 = disX(gen);
+		float pointZ2 = disZ(gen);
+
+		// Determine fault line direction
+		float A = pointZ1 - pointZ2;
+		float B = pointX2 - pointX1;
+		float C = pointX1 * pointZ2 - pointX2 * pointZ1;
+
+		// Height displacement
+		float displacement = 0.1f;  // Adjust for terrain roughness
+
+		// Apply fault to terrain
+		for (int z = 0; z < m_terrainHeight; z++)
+		{
+			for (int x = 0; x < m_terrainWidth; x++)
+			{
+				int index = z * m_terrainWidth + x;
+
+				// Determine which side of fault line
+				if ((A * x + B * z + C) > 0)
+				{
+					m_heightMap[index].y += displacement;
+				}
+				else
+				{
+					m_heightMap[index].y -= displacement;
+				}
+			}
+		}
+	}
+
+	// Normalize and update terrain
+	CalculateNormals();
+	InitializeBuffers(device);
+
+	return true;
+}
+
+bool Terrain::GenerateParticleDepositionTerrain(ID3D11Device* device)
+{
+	// Reset height map
+	for (int i = 0; i < m_terrainWidth * m_terrainHeight; i++)
+	{
+		m_heightMap[i].y = 0.0f;
+	}
+
+	// Particle deposition parameters
+	int numParticles = 100000;  // Number of particles to drop
+	float particleDropHeight = 10.0f;  // Initial drop height
+	float erosionFactor = 0.01f;  // How much particles spread
+
+	std::random_device rd;
+	std::mt19937 gen(rd());
+	std::uniform_real_distribution<> disX(0, m_terrainWidth - 1);
+	std::uniform_real_distribution<> disZ(0, m_terrainHeight - 1);
+
+	for (int particle = 0; particle < numParticles; particle++)
+	{
+		// Random drop location
+		int x = static_cast<int>(disX(gen));
+		int z = static_cast<int>(disZ(gen));
+
+		float currentHeight = particleDropHeight;
+
+		while (currentHeight > 0)
+		{
+			int index = z * m_terrainWidth + x;
+
+			// Deposit particle
+			m_heightMap[index].y += currentHeight;
+
+			// Find lowest neighboring point
+			float lowestHeight = m_heightMap[index].y;
+			int lowestX = x, lowestZ = z;
+
+			for (int dx = -1; dx <= 1; dx++)
+			{
+				for (int dz = -1; dz <= 1; dz++)
+				{
+					if (dx == 0 && dz == 0) continue; // Skip the current particle's position
+
+					int neighborX = x + dx;
+					int neighborZ = z + dz;
+
+					// Ensure we stay within bounds of the height map
+					if (neighborX >= 0 && neighborX < m_terrainWidth &&
+						neighborZ >= 0 && neighborZ < m_terrainHeight)
+					{
+						int neighborIndex = neighborZ * m_terrainWidth + neighborX;
+
+						// Check if this neighbor is lower
+						if (m_heightMap[neighborIndex].y < lowestHeight)
+						{
+							lowestHeight = m_heightMap[neighborIndex].y;
+							lowestX = neighborX;
+							lowestZ = neighborZ;
+						}
+					}
+				}
+
+				// Move the particle to the lowest neighbor position
+				x = lowestX;
+				z = lowestZ;
+
+				// Reduce height of the particle for spreading
+				currentHeight -= erosionFactor;
+			}
+		}
+
+		// Normalize and update terrain
+		CalculateNormals();
+		InitializeBuffers(device);
+
+		return true;
+	}
+}
+
 void Terrain::GeneratePermutationTable()
 {
 	// Create and shuffle permutation table

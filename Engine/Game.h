@@ -214,4 +214,6 @@ private:
 
     DirectX::SimpleMath::Vector3 m_cameraPosition;
     DirectX::SimpleMath::Vector3 m_cameraRotation;
+
+    bool isMouseHoveringOverImGui = false;
 };
