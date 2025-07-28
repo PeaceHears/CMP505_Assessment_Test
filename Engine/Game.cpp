@@ -92,10 +92,12 @@ void Game::Initialize(HWND window, int width, int height)
 
     SetupDrone();
 
-    CreateObjectsVector(10);
-
     InitializeRegionRules();
     GenerateFractalObstacles();
+
+    const auto numberOfObjects = 10;
+    m_objectManager = std::make_unique<ObjectManager>();
+    m_objectManager->CreateObjects(numberOfObjects, m_deviceResources->GetD3DDevice(), m_Terrain);
 	
 #ifdef DXTK_AUDIO
     // Create DirectXTK for Audio objects
@@ -160,17 +162,47 @@ void Game::Tick()
 	
 }
 
-// Updates the world.
+void Game::HandleInput(DX::StepTimer const& timer)
+{
+    // Mouse rotation
+    if (!isMouseHoveringOverImGui)
+    {
+        float mouseDeltaX = static_cast<float>(m_gameInputCommands.mouseX - m_lastMouseX);
+        float mouseDeltaY = static_cast<float>(m_gameInputCommands.mouseY - m_lastMouseY);
+
+        // Sensitivity adjustment for rotation
+        const float sensitivity = 0.2f;
+
+        auto rotation = m_Camera01.getRotation();
+        rotation.y -= mouseDeltaX * sensitivity; // Yaw
+        rotation.x -= mouseDeltaY * sensitivity; // Pitch
+
+        // Clamp vertical rotation
+        rotation.x = Utils::Clamp(rotation.x, -89.0f, 89.0f);
+
+        m_Camera01.setRotation(rotation);
+    }
+
+    m_lastMouseX = m_gameInputCommands.mouseX;
+    m_lastMouseY = m_gameInputCommands.mouseY;
+
+    UpdateCameraMovement();
+}
+
 void Game::Update(DX::StepTimer const& timer)
 {
-    UpdateCameraMovement();
+    HandleInput(timer);
     UpdateDroneMovement();
 
-    CheckDroneCollisions();
-    CheckObjectColoursWithRegionColours();
+    m_objectManager->UpdateAll(m_Drone, m_Terrain, m_deviceResources->GetD3DDevice());
 
-	m_Camera01.Update();	//camera update.
-	m_Terrain.Update();		//terrain update.  doesnt do anything at the moment. 
+    if (IsWin())
+    {
+        OnWin();
+    }
+
+	m_Camera01.Update();
+	m_Terrain.Update();
 
     m_gameTimer.UpdateRemainingTime();
 
@@ -263,7 +295,7 @@ void Game::RenderScene(ID3D11DeviceContext* context)
     m_Drone.Render(context);
 
     // Render other objects
-    RenderObjectsAtRandomLocations(context);
+    m_objectManager->RenderAll(m_BasicShaderPair, *context, m_projection, *m_texture2.Get(), m_Camera01, m_Light);
     RenderFractalObstacles(context);
 }
 
@@ -626,7 +658,13 @@ void Game::UpdateDroneMovement()
     Vector3 dronePosition = cameraPosition + droneOffset;
 
     // Perform terrain collision check
-    CheckObjectCollisionWithTerrain(m_localDroneX, m_localDroneZ, dronePosition, m_Drone, true);
+    auto isCheckingRegionProgress = false;
+    m_objectManager->CheckObjectCollisionWithTerrain(m_localDroneX, m_localDroneZ, dronePosition, m_Drone, isCheckingRegionProgress, m_Terrain);
+
+    if (isCheckingRegionProgress)
+    {
+        CheckDroneRegionProgress(m_localDroneX, m_localDroneZ);
+    }
 
     // Update drone position and bounding sphere
     m_Drone.SetPosition(dronePosition);
@@ -635,98 +673,51 @@ void Game::UpdateDroneMovement()
 
 void Game::UpdateCameraMovement()
 {
-    // Calculate mouse deltas
-    const float mouseDeltaX = static_cast<float>(m_gameInputCommands.mouseX - m_lastMouseX);
-    const float mouseDeltaY = static_cast<float>(m_gameInputCommands.mouseY - m_lastMouseY);
-
-    // Update last mouse positions
-    m_lastMouseX = m_gameInputCommands.mouseX;
-    m_lastMouseY = m_gameInputCommands.mouseY;
-
-    // Camera Rotation
-    Vector3 rotation = m_Camera01.getRotation();
-
-    // Sensitivity adjustment for rotation
-    const float sensitivity = 0.2f;
-
-    // Horizontal rotation (Yaw) - left/right mouse movement
-    rotation.y -= mouseDeltaX * sensitivity;
-
-    // Vertical rotation (Pitch) - up/down mouse movement
-    rotation.x -= mouseDeltaY * sensitivity;
-
-    // Clamp vertical rotation to prevent camera flipping
-    rotation.x = Utils::Clamp(rotation.x, -89.0f, 89.0f);
-
-    if (!isMouseHoveringOverImGui)
-    {
-        // Set the new rotation for the camera
-        m_Camera01.setRotation(rotation);
-    }
-
-    // Movement speed
     const float moveSpeed = 0.1f;
+    auto cameraMovement = DirectX::SimpleMath::Vector3::Zero;
 
-    // Check if drone is colliding with terrain
-    const bool isDroneColliding = m_Drone.IsCollidingWithTerrain();
+    // Get camera's forward and right vectors, flattened for horizontal movement
+    auto forward = m_Camera01.getForward();
+    auto right = m_Camera01.getRight();
+    forward.y = 0.0f;
+    right.y = 0.0f;
+    forward.Normalize();
+    right.Normalize();
 
-    // Calculate camera movement based on WASD input
-    Vector3 cameraMovement = Vector3::Zero;
-
-    // Get camera's forward and right vectors
-    Vector3 forwardVector = m_Camera01.GetForwardVector();
-    Vector3 rightVector = m_Camera01.GetRightVector();
-
-    // Flatten forward and right vectors to prevent vertical movement from input
-    forwardVector.y = 0.0f;
-    rightVector.y = 0.0f;
-    forwardVector.Normalize();
-    rightVector.Normalize();
-
-    // Forward and backward movement
+    // Forward/backward
     if (m_gameInputCommands.forward)
     {
-        cameraMovement += forwardVector * moveSpeed;
+        cameraMovement += forward * moveSpeed;
     }
+
     if (m_gameInputCommands.back)
     {
-        cameraMovement -= forwardVector * moveSpeed;
+        cameraMovement -= forward * moveSpeed;
     }
 
-    // Strafe left and right movement
+    // Strafe left/right
     if (m_gameInputCommands.left)
     {
-        cameraMovement -= rightVector * moveSpeed;
-    }
-    if (m_gameInputCommands.right)
-    {
-        cameraMovement += rightVector * moveSpeed;
+        cameraMovement -= right * moveSpeed;
     }
 
-    // Vertical movement with terrain collision check
+    if (m_gameInputCommands.right)
+    {
+        cameraMovement += right * moveSpeed;
+    }
+
+    // Vertical movement
     if (m_gameInputCommands.up)
     {
         cameraMovement.y += moveSpeed;
     }
-    if (m_gameInputCommands.down)
+
+    if (m_gameInputCommands.down && !m_Drone.IsCollidingWithTerrain())
     {
-        // Only allow downward movement if drone is NOT colliding with terrain
-        if (!isDroneColliding)
-        {
-            cameraMovement.y -= moveSpeed;
-        }
+        cameraMovement.y -= moveSpeed;
     }
 
-    // Update camera position
-    Vector3 cameraPosition = m_Camera01.getPosition();
-    cameraPosition += cameraMovement;
-    m_Camera01.setPosition(cameraPosition);
-
-    // Update drone position relative to camera
-    Vector3 dronePosition = cameraPosition +
-        Vector3(0, -0.5f, -1.0f);  // Fixed offset
-
-    m_Drone.SetPosition(dronePosition);
+    m_Camera01.setPosition(m_Camera01.getPosition() + cameraMovement);
 }
 
 void Game::ChangeTargetRegion()
@@ -766,7 +757,10 @@ void Game::DrawLevelIndicator()
 void Game::DrawMatchedColouredObjectCountIndicator()
 {
     char buffer[50];
-    sprintf_s(buffer, "Matched Coloured Objects: %d/%d", matchedColourCount, (int) m_objects.size());
+    sprintf_s(buffer, 
+        "Matched Coloured Objects: %d/%zu", 
+        m_objectManager->GetMatchedColourCount(), 
+        m_objectManager->GetObjectCount());
 
     m_sprites->Begin();
     m_font->DrawString(m_sprites.get(), std::string(buffer).c_str(), XMFLOAT2(800, 50), Colors::Orange);
@@ -843,145 +837,9 @@ void Game::RenderFractalObstacles(ID3D11DeviceContext* context)
     }
 }
 
-void Game::CreateObjectsVector(int count)
-{
-    for (size_t i = 0; i < count; i++)
-    {
-        const float randomScale = Utils::GetRandomFloat(0.1f, 0.5f);
-        const auto randomPosition = m_Terrain.GetRandomPosition();
-
-        const auto randomVoronoiRegionColour = m_Terrain.GetRandomVoronoiRegionColour();
-
-        auto model = std::make_unique<ModelClass>();
-
-        model->InitializeModel(m_deviceResources->GetD3DDevice(), "drone.obj", true);
-        model->ChangeColour(m_deviceResources->GetD3DDevice(),
-            randomVoronoiRegionColour,
-            m_Terrain.GetVoronoiRegionColourVector(randomVoronoiRegionColour));
-
-        model->SetPosition(randomPosition);
-        model->SetScale(Vector3(randomScale, randomScale, randomScale));
-        model->UpdateBoundingSphere();
-
-        m_objects.push_back(std::move(model));
-    }
-}
-
-void Game::RenderObjectsAtRandomLocations(ID3D11DeviceContext* context)
-{
-    for each (const auto& object in m_objects)
-    {
-        float localPositionX = 0.0f;
-        float localPositionY = 0.0f;
-        auto worldPosition = object->GetPosition();
-
-        CheckObjectCollisionWithTerrain(localPositionX, localPositionY, worldPosition, *object);
-
-        m_BasicShaderPair.EnableShader(context);
-        m_BasicShaderPair.SetShaderParameters(context, &object->GetWorldMatrix(), &m_view, &m_projection, &m_Light, m_texture2.Get());
-        object->Render(context);
-    }
-}
-
-void Game::CheckObjectCollisionWithTerrain(float& localPositionX, float& localPositionZ,
-                                            DirectX::SimpleMath::Vector3& worldPosition, ModelClass& model,
-                                            const bool isPlayer)
-{
-    localPositionX = (worldPosition.x - m_terrainTranslation.x) / m_terrainScale;
-    const auto localPositionY = (worldPosition.y - m_terrainTranslation.y) / m_terrainScale;
-    localPositionZ = (worldPosition.z - m_terrainTranslation.z) / m_terrainScale;
-
-    model.SetLocalPosition(DirectX::SimpleMath::Vector3(localPositionX, localPositionY, localPositionZ));
-
-    // Check if model is over the terrain
-    const bool isOverTerrain = (localPositionX >= 0 && localPositionX < m_Terrain.GetWidth() &&
-                                localPositionZ >= 0 && localPositionZ < m_Terrain.GetHeight());
-
-    model.SetCollidingWithTerrain(false);
-
-    if (isOverTerrain)
-    {
-        // Get terrain height in world space
-        const float terrainLocalY = m_Terrain.GetHeightAt(localPositionX, localPositionZ);
-        const float terrainWorldY = (terrainLocalY * m_terrainScale) + m_terrainTranslation.y;
-
-        // Model collision parameters
-        const float modelRadius = model.GetBoundingRadius();
-        const float modelBottom = worldPosition.y - modelRadius;
-
-        // Check penetration from above or below
-        const bool isPenetratingFromAbove = (modelBottom <= terrainWorldY);
-
-        // Resolve collision based on movement direction
-        if (isPenetratingFromAbove)
-        {
-            // From above: Push up to terrain surface
-            worldPosition.y = terrainWorldY + modelRadius;
-            model.SetCollidingWithTerrain(true);
-
-            if (isPlayer)
-            {
-                CheckDroneRegionProgress(m_localDroneX, m_localDroneZ);
-            }
-        }
-    }
-
-    model.SetPosition(worldPosition);
-}
-
-void Game::CheckDroneCollisions()
-{
-    const auto droneColour = m_Drone.GetColour();
-
-    for each (auto& object in m_objects)
-    {
-        if (m_Drone.CheckCollision(*object))
-        {
-            if (object->IsCollidingWithModel())
-            {
-                continue;
-            }
-
-            object->SetCollidingWithModel(true);
-            object->ChangeColour(m_deviceResources->GetD3DDevice(), droneColour, m_Terrain.GetVoronoiRegionColourVector(droneColour));
-        }
-        else
-        {
-            object->SetCollidingWithModel(false);
-        }
-    }
-}
-
-void Game::CheckObjectColoursWithRegionColours()
-{
-    matchedColourCount = 0;
-
-    for each (auto& object in m_objects)
-    {
-        const auto objectPosition = object->GetLocalPosition();
-        const auto objectColour = object->GetColour();
-        const auto regionColour = m_Terrain.GetRegionColourAtPosition(objectPosition.x, objectPosition.z);
-
-        if (objectColour == regionColour)
-        {
-            matchedColourCount++;
-        }
-    }
-
-    CheckWin();
-}
-
-void Game::CheckWin()
-{
-    if (IsWin())
-    {
-        OnWin();
-    }
-}
-
 bool Game::IsWin()
 {
-    if (matchedColourCount == m_objects.size())
+    if (m_objectManager->CheckAllColoursMatched())
     {
         return true;
     }
@@ -991,8 +849,11 @@ bool Game::IsWin()
 
 void Game::OnWin()
 {
-    RestartScene();
     level++;
+    RestartScene();
+
+    // Recreate the objects for the new level
+    m_objectManager->CreateObjects(10, m_deviceResources->GetD3DDevice(), m_Terrain);
 }
 
 void Game::RestartScene()

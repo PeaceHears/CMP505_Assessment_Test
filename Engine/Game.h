@@ -13,6 +13,7 @@
 #include "GameTimer.h"
 #include "Enums.h"
 #include "modelclass.h"
+#include "ObjectManager.h"
 
 // Forward declarations to reduce header dependencies
 class FractalObstacle;
@@ -60,6 +61,7 @@ private:
     void CreateDeviceDependentResources();
     void CreateWindowSizeDependentResources();
     void SetupImGUI();
+    void HandleInput(DX::StepTimer const& timer);
 
     // --- Game Logic ---
     void HandleTimerExpiration();
@@ -76,12 +78,9 @@ private:
     void OnWin();
 
     // --- Object and Collision Management ---
-    void CreateObjectsVector(int count);
     void CheckObjectCollisionWithTerrain(float& localPositionX, float& localPositionZ,
         DirectX::SimpleMath::Vector3& worldPosition, ModelClass& model,
         const bool isPlayer = false);
-    void CheckDroneCollisions();
-    void CheckObjectColoursWithRegionColours();
 
     // --- Procedural Generation ---
     void InitializeRegionRules();
@@ -90,7 +89,6 @@ private:
     // --- Rendering Sub-systems ---
     void RenderScene(ID3D11DeviceContext* context);
     void RenderFractalObstacles(ID3D11DeviceContext* context);
-    void RenderObjectsAtRandomLocations(ID3D11DeviceContext* context);
     void DrawGUIIndicators();
     void DrawLevelIndicator();
     void DrawMatchedColouredObjectCountIndicator();
@@ -121,7 +119,6 @@ private:
     Terrain                                  m_Terrain;
     ModelClass                               m_Drone;
     ModelClass                               m_ObstacleModel;
-    std::vector<std::unique_ptr<ModelClass>> m_objects;
     std::vector<FractalObstacle>             m_fractalObstacles;
 
     // Lights
@@ -142,7 +139,6 @@ private:
     GameTimer                                m_gameTimer;
     bool                                     m_isTimerPaused = false;
     int                                      level = 1;
-    int                                      matchedColourCount = 0;
 
     // UI and Input State
     int                                      m_lastMouseX = 0;
@@ -173,6 +169,8 @@ private:
     DirectX::SimpleMath::Matrix              m_world;
     DirectX::SimpleMath::Matrix              m_view;
     DirectX::SimpleMath::Matrix              m_projection;
+
+    std::unique_ptr<ObjectManager>           m_objectManager;
 
 #ifdef DXTK_AUDIO
     std::unique_ptr<DirectX::AudioEngine>                                   m_audEngine;

@@ -6,7 +6,7 @@ public:
 	~Camera();
 
 	void							Update();
-	DirectX::SimpleMath::Matrix		getCameraMatrix();
+	DirectX::SimpleMath::Matrix		getCameraMatrix() const;
 	void							setPosition(DirectX::SimpleMath::Vector3 newPosition);
 	DirectX::SimpleMath::Vector3	getPosition();
 	DirectX::SimpleMath::Vector3	getForward();

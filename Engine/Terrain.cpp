@@ -1017,12 +1017,12 @@ const Enums::COLOUR& Terrain::GetRandomVoronoiRegionColour() const
 	return randomRegion.colour;
 }
 
-const Enums::COLOUR& Terrain::GetRegionColourAtPosition(const float x, const float z)
+const Enums::COLOUR& Terrain::GetRegionColourAtPosition(const float x, const float z) const
 {
 	float minDistance = std::numeric_limits<float>::max();
-	VoronoiRegion* closestRegion = nullptr;
+	const VoronoiRegion* closestRegion = nullptr;
 
-	for (auto& region : m_voronoiRegions)
+	for (const auto& region : m_voronoiRegions)
 	{
 		const float distance = CalculateDistance(x, z, region.position.x, region.position.z);
 

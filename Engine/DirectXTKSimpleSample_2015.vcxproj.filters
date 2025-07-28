@@ -80,6 +80,7 @@
     <ClInclude Include="FractalObstacle.h">
       <Filter>LSystems</Filter>
     </ClInclude>
+    <ClInclude Include="ObjectManager.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="pch.cpp" />
@@ -133,6 +134,7 @@
     <ClCompile Include="FractalObstacle.cpp">
       <Filter>LSystems</Filter>
     </ClCompile>
+    <ClCompile Include="ObjectManager.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="resource.rc" />

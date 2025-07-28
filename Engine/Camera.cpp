@@ -66,7 +66,7 @@ void Camera::Update()
 	m_cameraMatrix = DirectX::SimpleMath::Matrix::CreateLookAt(m_position, m_lookat, DirectX::SimpleMath::Vector3::UnitY);
 }
 
-DirectX::SimpleMath::Matrix Camera::getCameraMatrix()
+DirectX::SimpleMath::Matrix Camera::getCameraMatrix() const
 {
 	return m_cameraMatrix;
 }

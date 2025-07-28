@@ -61,7 +61,7 @@ public:
 	bool GenerateVoronoiRegions(ID3D11Device* device, int numRegions);
 
 	const Enums::COLOUR& GetRandomVoronoiRegionColour() const;
-	const Enums::COLOUR& GetRegionColourAtPosition(const float x, const float z);
+	const Enums::COLOUR& GetRegionColourAtPosition(const float x, const float z) const;
 	const DirectX::SimpleMath::Vector4& GetVoronoiRegionColourVector(const Enums::COLOUR& colour) const;
 	const std::vector<VoronoiRegion>& GetVoronoiRegions() const { return m_voronoiRegions; }
 
