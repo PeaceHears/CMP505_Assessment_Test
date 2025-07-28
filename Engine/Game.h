@@ -95,12 +95,6 @@ private:
     void DrawLevelIndicator();
     void DrawMatchedColouredObjectCountIndicator();
 
-    // --- Post-Processing ---
-    void RenderWithPostProcess();
-    void RenderWithoutPostProcess();
-    void CreatePostProcessResources();
-    void SetupPostProcessImGUI();
-
     // --- Private Member Variables ---
 
     // Core Resources

@@ -172,8 +172,6 @@ void Game::Update(DX::StepTimer const& timer)
 	m_Camera01.Update();	//camera update.
 	m_Terrain.Update();		//terrain update.  doesnt do anything at the moment. 
 
-	m_view = m_Camera01.getCameraMatrix();
-
     m_gameTimer.UpdateRemainingTime();
 
     if (m_gameTimer.IsExpired())
@@ -224,139 +222,53 @@ void Game::Render()
         return;
     }
 
-    //RenderWithPostProcess();
-    RenderWithoutPostProcess();
-}
+    Clear();
 
-void Game::RenderWithPostProcess()
-{
+    // Set common rendering states
     auto context = m_deviceResources->GetD3DDeviceContext();
-
-    // Clear the post-process render texture
-    float clearColor[4] = { 0.0f, 0.0f, 0.0f, 1.0f };
-    context->ClearRenderTargetView(m_PostProcessRenderTexture->getRenderTargetView(), clearColor);
-    context->ClearDepthStencilView(m_deviceResources->GetDepthStencilView(),
-        D3D11_CLEAR_DEPTH | D3D11_CLEAR_STENCIL,
-        1.0f,
-        0);
-
-    auto renderTargetView = m_PostProcessRenderTexture->getRenderTargetView();
-
-    // Set render target to post-process texture
-    context->OMSetRenderTargets(1, &renderTargetView, m_deviceResources->GetDepthStencilView());
-
-    // Set the viewport for the render texture
-    D3D11_VIEWPORT viewport;
-    viewport.Width = static_cast<float>(m_PostProcessRenderTexture->getTextureWidth());
-    viewport.Height = static_cast<float>(m_PostProcessRenderTexture->getTextureHeight());
-    viewport.MinDepth = 0.0f;
-    viewport.MaxDepth = 1.0f;
-    viewport.TopLeftX = 0.0f;
-    viewport.TopLeftY = 0.0f;
-    context->RSSetViewports(1, &viewport);
-
-    // Render scene components (your existing rendering logic)
-    // Set rendering states
     context->OMSetBlendState(m_states->Opaque(), nullptr, 0xFFFFFFFF);
     context->OMSetDepthStencilState(m_states->DepthDefault(), 0);
     context->RSSetState(m_states->CullClockwise());
 
+    // Update the view and projection matrices once per frame
+    m_view = m_Camera01.getCameraMatrix();
+    m_world = DirectX::SimpleMath::Matrix::Identity;
+
+    // Render the main scene
     RenderScene(context);
 
-    // Restore the default render target
-    auto backBufferRTV = m_deviceResources->GetRenderTargetView();
-    context->OMSetRenderTargets(1, &backBufferRTV, m_deviceResources->GetDepthStencilView());
-
-    // Clear the back buffer
-    float clearColorBackBuffer[4] = { 0.0f, 0.0f, 0.0f, 1.0f };
-    context->ClearRenderTargetView(backBufferRTV, clearColorBackBuffer);
-
-    // Apply post-processing effect
-    context->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-
-    // Enable the post-process shader
-    m_PostProcessShader.EnableShader(context);
-
-    // Set shader parameters
-    DirectX::SimpleMath::Matrix identity = DirectX::SimpleMath::Matrix::Identity;
-    m_PostProcessShader.SetShaderParameters(
-        context,
-        &identity,
-        &identity,
-        &identity,
-        &m_Light,
-        m_PostProcessRenderTexture->getShaderResourceView(),
-        m_postProcessEffectType,
-        m_postProcessVignetteIntensity
-    );
-
-    // Draw full-screen triangle
-    context->Draw(3, 0);
-
+    // Render all UI elements
     DrawGUIIndicators();
 
-    // Render ImGui
+    // Render ImGui draw data
     ImGui::Render();
     ImGui_ImplDX11_RenderDrawData(ImGui::GetDrawData());
 
-    // Present the frame
-    m_deviceResources->Present();
-}
-
-void Game::RenderWithoutPostProcess()
-{
-    Clear();
-    m_deviceResources->PIXBeginEvent(L"Render");
-    auto context = m_deviceResources->GetD3DDeviceContext();
-    auto renderTargetView = m_deviceResources->GetRenderTargetView();
-    auto depthTargetView = m_deviceResources->GetDepthStencilView();
-
-    //Set Rendering states. 
-    context->OMSetBlendState(m_states->Opaque(), nullptr, 0xFFFFFFFF);
-    context->OMSetDepthStencilState(m_states->DepthDefault(), 0);
-    context->RSSetState(m_states->CullClockwise());
-    //	context->RSSetState(m_states->Wireframe());
-
-    RenderScene(m_deviceResources->GetD3DDeviceContext());
-
-    DrawGUIIndicators();
-
-    // Render ImGui
-    ImGui::Render();
-    ImGui_ImplDX11_RenderDrawData(ImGui::GetDrawData());
-
-    // Present the frame
+    // Present the final frame
     m_deviceResources->Present();
 }
 
 void Game::RenderScene(ID3D11DeviceContext* context)
 {
-    //Render terrain
-    m_world = SimpleMath::Matrix::Identity; //set world back to identity
-    SimpleMath::Matrix newPosition3 = SimpleMath::Matrix::CreateTranslation(m_terrainTranslation);
-    SimpleMath::Matrix newScale = SimpleMath::Matrix::CreateScale(0.1f);
-    m_world = m_world * newScale * newPosition3;
-
+    // Render terrain
+    m_world = DirectX::SimpleMath::Matrix::CreateScale(m_terrainScale) * DirectX::SimpleMath::Matrix::CreateTranslation(m_terrainTranslation);
     m_BasicShaderPair.EnableShader(context);
     m_BasicShaderPair.SetShaderParameters(context, &m_world, &m_view, &m_projection, &m_Light, m_texture1.Get());
     m_Terrain.Render(context);
 
     // Render drone
-    SimpleMath::Matrix droneWorldMatrix = m_Drone.GetWorldMatrix();
-
+    DirectX::SimpleMath::Matrix droneWorldMatrix = m_Drone.GetWorldMatrix();
     m_BasicShaderPair.EnableShader(context);
     m_BasicShaderPair.SetShaderParameters(context, &droneWorldMatrix, &m_view, &m_projection, &m_Drone_Light, m_texture2.Get());
     m_Drone.Render(context);
 
+    // Render other objects
     RenderObjectsAtRandomLocations(context);
-
     RenderFractalObstacles(context);
-
 }
 
 void Game::DrawGUIIndicators()
 {
-    // Draw Title to the screen
     m_sprites->Begin();
     m_font->DrawString(m_sprites.get(), L"Advanced Procedural Methods", XMFLOAT2(10, 10), Colors::Yellow);
     m_sprites->End();
@@ -484,8 +396,6 @@ void Game::CreateDeviceDependentResources()
 
 	//load and set up our Vertex and Pixel Shaders
 	m_BasicShaderPair.InitStandard(device, L"light_vs.cso", L"light_ps.cso");
-
-    CreatePostProcessResources();
 
 	//load Textures
 	CreateDDSTextureFromFile(device, L"seafloor.dds",		nullptr,	m_texture1.ReleaseAndGetAddressOf());
@@ -678,39 +588,6 @@ void Game::SetupImGUI()
     }
 
 	ImGui::End();
-
-    SetupPostProcessImGUI();
-}
-
-void Game::SetupPostProcessImGUI()
-{
-    ImGui::Begin("Post-Processing Effects");
-
-    m_postProcessEffectType = 1;
-    const char* effects[] = {
-        "Normal",
-        "Invert",
-        "Grayscale",
-        "Sepia",
-        "Vignette"
-    };
-    ImGui::Combo("Effect Type", &m_postProcessEffectType, effects, IM_ARRAYSIZE(effects));
-
-    // Add additional effect-specific parameters here
-    switch (m_postProcessEffectType)
-    {
-        case 1: // Invert
-            break;
-        case 2: // Grayscale
-            break;
-        case 3: // Sepia
-            break;
-        case 4: // Vignette
-            ImGui::SliderFloat("Vignette Intensity", &m_postProcessVignetteIntensity, 0.0f, 1.0f);
-            break;
-    }
-
-    ImGui::End();
 }
 
 void Game::HandleTimerExpiration()
@@ -1116,26 +993,6 @@ void Game::OnWin()
 {
     RestartScene();
     level++;
-}
-
-void Game::CreatePostProcessResources()
-{
-    // Create render texture for post-processing
-    m_PostProcessRenderTexture = std::make_unique<RenderTexture>(
-        m_deviceResources->GetD3DDevice(),
-        800,  // Width 
-        600,  // Height
-        1,
-        2
-    );
-
-    // Initialize post-process shader
-    m_PostProcessShader.InitStandard(
-        m_deviceResources->GetD3DDevice(),
-        L"postprocess_vs.cso",
-        L"postprocess_ps.cso",
-        true
-    );
 }
 
 void Game::RestartScene()
