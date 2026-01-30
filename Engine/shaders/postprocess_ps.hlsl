@@ -17,33 +17,32 @@ struct PixelInputType
 float4 main(PixelInputType input) : SV_TARGET
 {
     float4 textureColor = sceneTexture.Sample(samplerState, input.tex);
-    
-    switch (effectType)
+
+    // ps_4_0_level_9_3 does not support switch statements or complex integer math.
+    if (effectType == 1) // Invert
     {
-        case 1: // Invert
-            textureColor.rgb = 1.0f - textureColor.rgb;
-            break;
-        
-        case 2: // Grayscale
-            float gray = dot(textureColor.rgb, float3(0.299f, 0.587f, 0.114f));
-            textureColor.rgb = float3(gray, gray, gray);
-            break;
-        
-        case 3: // Sepia
-            float3 sepia = float3(
-                dot(textureColor.rgb, float3(0.393f, 0.769f, 0.189f)),
-                dot(textureColor.rgb, float3(0.349f, 0.686f, 0.168f)),
-                dot(textureColor.rgb, float3(0.272f, 0.534f, 0.131f))
-            );
-            textureColor.rgb = saturate(sepia);
-            break;
-        
-        case 4: // Vignette
-            float2 vignetteCenter = float2(0.5f, 0.5f);
-            float dist = distance(input.tex, vignetteCenter);
-            textureColor.rgb *= smoothstep(0.75f, 0.75f - vignetteIntensity, dist);
-            break;
+        textureColor.rgb = 1.0f - textureColor.rgb;
     }
-    
+    else if (effectType == 2) // Grayscale
+    {
+        float gray = dot(textureColor.rgb, float3(0.299f, 0.587f, 0.114f));
+        textureColor.rgb = float3(gray, gray, gray);
+    }
+    else if (effectType == 3) // Sepia
+    {
+        float3 sepia = float3(
+            dot(textureColor.rgb, float3(0.393f, 0.769f, 0.189f)),
+            dot(textureColor.rgb, float3(0.349f, 0.686f, 0.168f)),
+            dot(textureColor.rgb, float3(0.272f, 0.534f, 0.131f))
+        );
+        textureColor.rgb = saturate(sepia);
+    }
+    else if (effectType == 4) // Vignette
+    {
+        float2 vignetteCenter = float2(0.5f, 0.5f);
+        float dist = distance(input.tex, vignetteCenter);
+        textureColor.rgb *= smoothstep(0.75f, 0.75f - vignetteIntensity, dist);
+    }
+
     return textureColor;
 }
