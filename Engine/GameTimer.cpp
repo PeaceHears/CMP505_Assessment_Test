@@ -95,12 +95,15 @@ std::string GameTimer::GetFormattedTime() const
 
 void GameTimer::Render(std::unique_ptr<DirectX::SpriteBatch>& sprites, std::unique_ptr<DirectX::SpriteFont>& font)
 {
+    // SAFETY CHECK: If font failed to load, don't crash.
+    if (!font || !sprites)
+        return;
+
     std::string timerText = GetFormattedTime();
     std::wstring wTimerText(timerText.begin(), timerText.end());
 
     // Color the timer based on remaining time
     DirectX::XMVECTOR color = DirectX::Colors::Green;
-
     float remainingTime = GetRemainingTime();
 
     if (remainingTime <= 30.0f)
@@ -113,12 +116,12 @@ void GameTimer::Render(std::unique_ptr<DirectX::SpriteBatch>& sprites, std::uniq
         color = DirectX::Colors::Red;
     }
 
-    sprites->Begin();
+    // REMOVED: sprites->Begin();  <-- The Renderer already started the batch!
 
     font->DrawString(sprites.get(),
         wTimerText.c_str(),
         DirectX::XMFLOAT2(400.0f, 10.0f),
         color);
 
-    sprites->End();
+    // REMOVED: sprites->End();    <-- The Renderer will end the batch.
 }

@@ -1,5 +1,3 @@
-// Game.h
-
 #pragma once
 
 #include "DeviceResources.h"
@@ -12,36 +10,31 @@
 #include "Terrain.h"
 #include "GameTimer.h"
 #include "Enums.h"
-#include "modelclass.h"
+#include "ModelClass.h"
 #include "ObjectManager.h"
+#include "Renderer.h"
 
-// Forward declarations to reduce header dependencies
+// DirectXTK Includes
+#include "CommonStates.h"
+#include "SpriteBatch.h"
+#include "SpriteFont.h"
+
+// Forward declarations
 class FractalObstacle;
 
-// A basic game implementation that creates a D3D11 device and provides a game loop.
 class Game final : public DX::IDeviceNotify, public std::enable_shared_from_this<Game>
 {
 public:
     Game() noexcept(false);
-    // Make the class non-copyable and non-movable
-    Game(const Game&) = delete;
-    Game& operator=(const Game&) = delete;
-    Game(Game&&) = delete;
-    Game& operator=(Game&&) = delete;
     ~Game();
 
-    // Initialization and management
     void Initialize(HWND window, int width, int height);
     void GetDefaultSize(int& width, int& height) const;
-
-    // Basic game loop
     void Tick();
 
-    // IDeviceNotify
     void OnDeviceLost() override;
     void OnDeviceRestored() override;
 
-    // Messages
     void OnActivated();
     void OnDeactivated();
     void OnSuspending();
@@ -54,98 +47,74 @@ public:
 #endif
 
 private:
-    // --- Core Engine Components ---
     void Update(DX::StepTimer const& timer);
     void Render();
-    void Clear();
+
+    // System
+    void ExitGame(); // Private exit handler
     void CreateDeviceDependentResources();
     void CreateWindowSizeDependentResources();
-    void SetupImGUI();
-    void HandleInput(DX::StepTimer const& timer);
 
-    // --- Game Logic ---
-    void HandleTimerExpiration();
+    // Game Logic
+    void SetupImGUI();
     void SetupDrone();
     void UpdateCameraMovement();
     void UpdateDroneMovement();
     void ChangeTargetRegion();
-    bool IsTargetRegion(const Enums::COLOUR& colour) const;
-    void CheckDroneRegionProgress(const float localX, const float localZ);
-    void HandleTargetRegionReached(const Enums::COLOUR& regionColour);
+    void CheckDroneRegionProgress(float localX, float localZ);
+    void HandleTimerExpiration();
     void RestartScene();
-    void CheckWin();
     bool IsWin();
     void OnWin();
 
-    // --- Object and Collision Management ---
-    void CheckObjectCollisionWithTerrain(float& localPositionX, float& localPositionZ,
-        DirectX::SimpleMath::Vector3& worldPosition, ModelClass& model,
-        const bool isPlayer = false);
-
-    // --- Procedural Generation ---
+    // Procedural Generation
     void InitializeRegionRules();
     void GenerateFractalObstacles();
 
-    // --- Rendering Sub-systems ---
-    void RenderScene(ID3D11DeviceContext* context);
-    void RenderFractalObstacles(ID3D11DeviceContext* context);
-    void DrawGUIIndicators();
-    void DrawLevelIndicator();
-    void DrawMatchedColouredObjectCountIndicator();
+    // --- Member Variables ---
 
-    // --- Private Member Variables ---
+    std::unique_ptr<DX::DeviceResources>    m_deviceResources;
+    std::unique_ptr<Renderer>               m_renderer;
+    DX::StepTimer                           m_timer;
+    Input                                   m_input;
+    InputCommands                           m_gameInputCommands;
+    GameTimer                               m_gameTimer;
 
-    // Core Resources
-    std::unique_ptr<DX::DeviceResources> m_deviceResources;
-    DX::StepTimer                        m_timer;
-    Input                                m_input;
-    InputCommands                        m_gameInputCommands;
+    // Scene Objects
+    Terrain                                 m_Terrain;
+    ModelClass                              m_Drone;
+    ModelClass                              m_ObstacleModel;
+    std::unique_ptr<ObjectManager>          m_objectManager;
+    std::vector<FractalObstacle>            m_fractalObstacles;
 
-    // DirectXTK Objects
-    std::unique_ptr<DirectX::CommonStates>                                  m_states;
-    std::unique_ptr<DirectX::EffectFactory>                                 m_fxFactory;
-    std::unique_ptr<DirectX::SpriteBatch>                                   m_sprites;
-    std::unique_ptr<DirectX::SpriteFont>                                    m_font;
-    std::unique_ptr<DirectX::PrimitiveBatch<DirectX::VertexPositionColor>>  m_batch;
-    Microsoft::WRL::ComPtr<ID3D11InputLayout>                               m_batchInputLayout;
+    Light                                   m_Light;
+    Light                                   m_Drone_Light;
+    Camera                                  m_Camera01;
 
-    // Shaders and Textures
-    Shader                                   m_BasicShaderPair;
-    Shader                                   m_PostProcessShader;
-    Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> m_texture1;
-    Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> m_texture2;
+    // State Variables
+    int                                     m_level = 1;
+    DirectX::SimpleMath::Vector3            m_cameraPosition;
+    DirectX::SimpleMath::Vector3            m_cameraRotation;
+    float                                   m_localDroneX = 0.0f;
+    float                                   m_localDroneZ = 0.0f;
 
-    // Scene objects
-    Terrain                                  m_Terrain;
-    ModelClass                               m_Drone;
-    ModelClass                               m_ObstacleModel;
-    std::vector<FractalObstacle>             m_fractalObstacles;
+    // Terrain Config
+    float                                   m_terrainScale = 0.1f;
+    DirectX::SimpleMath::Vector3            m_terrainTranslation = DirectX::SimpleMath::Vector3(0.0f, -0.6f, 0.0f);
 
-    // Lights
-    Light                                    m_Light;
-    Light                                    m_Drone_Light;
+    // Gameplay Config
+    Enums::COLOUR                           m_targetRegionColour;
+    DirectX::SimpleMath::Vector4            m_targetRegionColourVector;
 
-    // Camera
-    Camera                                   m_Camera01;
-    DirectX::SimpleMath::Vector3             m_cameraPosition;
-    DirectX::SimpleMath::Vector3             m_cameraRotation;
+    // Matrices
+    DirectX::SimpleMath::Matrix             m_projection;
 
-    // Rendering and Post-Processing
-    std::unique_ptr<RenderTexture>           m_PostProcessRenderTexture;
-    int                                      m_postProcessEffectType = 0;
-    float                                    m_postProcessVignetteIntensity = 0.5f;
+    // Input State
+    int                                     m_lastMouseX = 0;
+    int                                     m_lastMouseY = 0;
+    bool                                    isMouseHoveringOverImGui = false;
 
-    // Game State
-    GameTimer                                m_gameTimer;
-    bool                                     m_isTimerPaused = false;
-    int                                      level = 1;
-
-    // UI and Input State
-    int                                      m_lastMouseX = 0;
-    int                                      m_lastMouseY = 0;
-    bool                                     isMouseHoveringOverImGui = false;
-
-    // Procedural Generation State
+    // L-System Rules
     enum class ObstacleType { SPIKES, CRYSTALS, VINES };
     struct RegionRule
     {
@@ -155,31 +124,13 @@ private:
         std::vector<std::pair<char, std::string>> rules;
         int iterations;
     };
-    std::vector<RegionRule>                  m_regionRules;
-    Enums::COLOUR                            m_targetRegionColour;
-    DirectX::SimpleMath::Vector4             m_targetRegionColourVector;
-
-    // Terrain and Object Positioning
-    float                                    m_terrainScale = 0.1f;
-    DirectX::SimpleMath::Vector3             m_terrainTranslation = DirectX::SimpleMath::Vector3(0.0f, -0.6f, 0.0f);
-    float                                    m_localDroneX = 0.0f;
-    float                                    m_localDroneZ = 0.0f;
-
-    // Matrices
-    DirectX::SimpleMath::Matrix              m_world;
-    DirectX::SimpleMath::Matrix              m_view;
-    DirectX::SimpleMath::Matrix              m_projection;
-
-    std::unique_ptr<ObjectManager>           m_objectManager;
+    std::vector<RegionRule>                 m_regionRules;
 
 #ifdef DXTK_AUDIO
-    std::unique_ptr<DirectX::AudioEngine>                                   m_audEngine;
-    std::unique_ptr<DirectX::WaveBank>                                      m_waveBank;
-    std::unique_ptr<DirectX::SoundEffect>                                   m_soundEffect;
-    std::unique_ptr<DirectX::SoundEffectInstance>                           m_effect1;
-    std::unique_ptr<DirectX::SoundEffectInstance>                           m_effect2;
-    uint32_t                                                                m_audioEvent;
-    float                                                                   m_audioTimerAcc;
-    bool                                                                    m_retryDefault;
+    std::unique_ptr<DirectX::AudioEngine>           m_audEngine;
+    std::unique_ptr<DirectX::WaveBank>              m_waveBank;
+    std::unique_ptr<DirectX::SoundEffect>           m_soundEffect;
+    std::unique_ptr<DirectX::SoundEffectInstance>   m_effect1;
+    bool                                            m_retryAudio = false;
 #endif
 };

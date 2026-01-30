@@ -81,6 +81,7 @@
       <Filter>LSystems</Filter>
     </ClInclude>
     <ClInclude Include="ObjectManager.h" />
+    <ClInclude Include="Renderer.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="pch.cpp" />
@@ -135,6 +136,7 @@
       <Filter>LSystems</Filter>
     </ClCompile>
     <ClCompile Include="ObjectManager.cpp" />
+    <ClCompile Include="Renderer.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="resource.rc" />

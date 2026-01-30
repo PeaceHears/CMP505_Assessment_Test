@@ -4,33 +4,38 @@
 
 namespace Utils
 {
-    int Utils::GetRandomInt(int min, int max)
+    // Static random engine to persist state and performance
+    static std::mt19937& GetRandomEngine()
     {
-        // Use random device as a seed
-        std::random_device rd;
+        static std::random_device rd;
+        static std::mt19937 gen(rd());
+        return gen;
+    }
 
-        // Mersenne Twister random number generator
-        std::mt19937 gen(rd());
-
-        // Uniform distribution in the specified range
+    int GetRandomInt(int min, int max)
+    {
         std::uniform_int_distribution<> dis(min, max);
-
-        // Generate and return random number
-        return dis(gen);
+        return dis(GetRandomEngine());
     }
 
-    float Utils::GetRandomFloat(float min, float max)
+    float GetRandomFloat(float min, float max)
     {
-        static std::random_device rd;  // Seed
-        static std::mt19937 engine(rd()); // Mersenne Twister engine
-        std::uniform_real_distribution<float> dist(min, max);
-        return dist(engine);
+        std::uniform_real_distribution<float> dis(min, max);
+        return dis(GetRandomEngine());
     }
 
-    const float Utils::Lerp(float a, float b, float t)
+    float Lerp(float a, float b, float t)
     {
-        // Linear interpolation
         return a + t * (b - a);
+    }
+
+    std::wstring ToWideString(const std::string& str)
+    {
+        if (str.empty()) return std::wstring();
+        int size_needed = MultiByteToWideChar(CP_UTF8, 0, &str[0], (int)str.size(), NULL, 0);
+        std::wstring wstrTo(size_needed, 0);
+        MultiByteToWideChar(CP_UTF8, 0, &str[0], (int)str.size(), &wstrTo[0], size_needed);
+        return wstrTo;
     }
 
     namespace Collision
@@ -45,29 +50,15 @@ namespace Utils
 
         bool OBBOBB(const ModelClass::OBB& a, const ModelClass::OBB& b)
         {
-            BoundingOrientedBox dxA, dxB;
+            DirectX::BoundingOrientedBox dxA, dxB;
 
-            // Set center and extents
             dxA.Center = a.center;
             dxA.Extents = a.extents;
-
-            dxA.Orientation = XMFLOAT4
-            (
-                a.orientation.x,
-                a.orientation.y,
-                a.orientation.z,
-                a.orientation.w
-            );
+            dxA.Orientation = a.orientation;
 
             dxB.Center = b.center;
             dxB.Extents = b.extents;
-            dxB.Orientation = XMFLOAT4
-            (
-                b.orientation.x,
-                b.orientation.y,
-                b.orientation.z,
-                b.orientation.w
-            );
+            dxB.Orientation = b.orientation;
 
             return dxA.Intersects(dxB);
         }
